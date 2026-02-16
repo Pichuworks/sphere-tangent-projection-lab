@@ -216,6 +216,14 @@ canvas {
   margin-bottom: 8px;
 }
 
+.analysis-sidebar .analysis-head > .help-btn,
+.analysis-sidebar .panel-head > .help-btn {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  font-size: 0.62rem;
+}
+
 .formula-panel {
   background: #fff7ea;
   border-color: #d9c5a5;
