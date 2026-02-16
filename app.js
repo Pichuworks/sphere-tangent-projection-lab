@@ -77,7 +77,7 @@
     projection: {
       title: "投影类型",
       body:
-        "Gnomonic 保大圆为直线，但距离与面积畸变增长快；Stereographic 保角但不保面积；Orthographic 视觉直观但会压缩远离切点区域；Cotangent Cylindrical 使用柱面展开坐标 (u=θ, v=cot(ψ))，用于观察强非线性局部畸变。"
+        "Gnomonic 保大圆为直线，但距离与面积畸变增长快；Stereographic 保角但不保面积；Orthographic 视觉直观但会压缩远离切点区域；Lambert Equal-Area 保面积但不保角；Cotangent Cylindrical 使用柱面展开坐标 (u=θ, v=cot(ψ))，用于观察强非线性局部畸变。"
     },
     lockNorth: {
       title: "切点锁定北极",
@@ -520,6 +520,13 @@
       }
       const part = scale(add(x, t), 2 / d);
       y = sub(part, t);
+    } else if (projection === "equalArea") {
+      const d = 1 + c;
+      if (d <= 1e-8) {
+        return { valid: false, reason: "near antipode", c };
+      }
+      const tangential = sub(x, scale(t, c));
+      y = add(t, scale(tangential, Math.sqrt(2 / d)));
     } else if (projection === "cotangent") {
       const s = Math.sqrt(Math.max(0, 1 - c * c));
       if (s <= 1e-6) {
@@ -596,7 +603,7 @@
     if (projection === "stereographic" && 1 + c <= 1e-6) {
       return null;
     }
-    if (projection === "cotangent") {
+    if (projection === "cotangent" || projection === "equalArea") {
       return numericalDifferential();
     }
 

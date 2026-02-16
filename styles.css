@@ -294,10 +294,10 @@ canvas {
 }
 
 .metric-help-btn {
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
-  font-size: 0.7rem;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  font-size: 0.62rem;
 }
 
 button {
@@ -313,7 +313,17 @@ button:hover {
   background: #f4ddbf;
 }
 
-.help-btn,
+.help-btn {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
 .icon-btn,
 .sidebar-toggle {
   width: 28px;
