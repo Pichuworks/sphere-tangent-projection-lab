@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>球面到切平面投影可视化</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <section class="controls card">
+        <h1>球面 -> 切平面投影实验台</h1>
+        <div class="control-grid">
+          <label>
+            投影类型
+            <select id="projectionSelect">
+              <option value="gnomonic">Gnomonic（中心投影）</option>
+              <option value="stereographic">Stereographic（对径点投影）</option>
+              <option value="orthographic">Orthographic（正交投影）</option>
+            </select>
+          </label>
+
+          <label class="inline">
+            <input id="lockNorth" type="checkbox" checked />
+            切点锁定北极
+          </label>
+
+          <label>
+            编辑模式
+            <select id="editMode">
+              <option value="A">设置点 A</option>
+              <option value="B">设置点 B</option>
+              <option value="T">设置切点 T</option>
+            </select>
+          </label>
+
+          <label>
+            局部分析点（沿 A->B）
+            <input id="sampleT" type="range" min="0" max="1" step="0.01" value="0.5" />
+          </label>
+
+          <label>
+            切平面视图半径
+            <input id="planeRadius" type="range" min="1.5" max="10" step="0.1" value="4.5" />
+          </label>
+
+          <label>
+            协变性坐标变换参数 α
+            <input id="alpha" type="range" min="0" max="1" step="0.01" value="0.35" />
+          </label>
+
+          <label>
+            协变性测试向量 du
+            <input id="du" type="number" step="0.001" value="0.02" />
+          </label>
+
+          <label>
+            协变性测试向量 dv
+            <input id="dv" type="number" step="0.001" value="0.03" />
+          </label>
+        </div>
+        <p class="hint">操作：在左侧球面视图点击设置 A/B/T，拖拽左侧可旋转球体。</p>
+      </section>
+
+      <section class="views">
+        <article class="card view-card">
+          <h2>球面视图（可旋转）</h2>
+          <canvas id="sphereCanvas" width="640" height="520"></canvas>
+        </article>
+
+        <article class="card view-card">
+          <h2>切平面视图</h2>
+          <canvas id="planeCanvas" width="640" height="520"></canvas>
+        </article>
+      </section>
+
+      <section class="panels">
+        <article class="card panel">
+          <h3>距离与弧长变化</h3>
+          <pre id="distancePanel"></pre>
+        </article>
+
+        <article class="card panel">
+          <h3>局部 Jacobian / 畸变</h3>
+          <pre id="jacobianPanel"></pre>
+        </article>
+
+        <article class="card panel">
+          <h3>广义协变性与测地线验证</h3>
+          <pre id="covariancePanel"></pre>
+        </article>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

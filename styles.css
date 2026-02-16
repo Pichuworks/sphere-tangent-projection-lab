@@ -1,0 +1,149 @@
+:root {
+  --bg: #f4efe6;
+  --card: #fff9f0;
+  --ink: #1d1a16;
+  --muted: #5d564e;
+  --accent: #b54a2f;
+  --line: #d8cab8;
+  --ok: #1d7c58;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "IBM Plex Sans", "Noto Sans SC", sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 12% 15%, #fff8eb 0, #fff8eb 22%, transparent 23%),
+    radial-gradient(circle at 85% 3%, #f2d3a8 0, #f2d3a8 12%, transparent 13%),
+    linear-gradient(140deg, #f8f2e8 0%, #efe5d6 55%, #f4ecdf 100%);
+}
+
+.app {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 10px 18px -16px #00000088;
+}
+
+.controls {
+  padding: 12px 14px 14px;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0 0 10px;
+  font-family: "Space Grotesk", "Noto Sans SC", sans-serif;
+}
+
+h1 {
+  font-size: 1.3rem;
+}
+
+h2 {
+  font-size: 1.05rem;
+}
+
+h3 {
+  font-size: 1rem;
+}
+
+.control-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px 12px;
+}
+
+label {
+  font-size: 0.92rem;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+label.inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  color: var(--ink);
+}
+
+input,
+select {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffefb;
+  padding: 6px 8px;
+  color: var(--ink);
+}
+
+input[type="range"] {
+  padding: 0;
+}
+
+.hint {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.views {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(300px, 1fr));
+  gap: 12px;
+}
+
+.view-card {
+  padding: 10px;
+}
+
+canvas {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, #fffdf7 0%, #fbf3e7 100%);
+}
+
+.panels {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.panel {
+  padding: 10px;
+}
+
+pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: "IBM Plex Mono", "Fira Code", monospace;
+  font-size: 0.84rem;
+  line-height: 1.36;
+}
+
+@media (max-width: 1080px) {
+  .views {
+    grid-template-columns: 1fr;
+  }
+
+  .panels {
+    grid-template-columns: 1fr;
+  }
+}
