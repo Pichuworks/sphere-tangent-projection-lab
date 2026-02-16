@@ -190,6 +190,15 @@ canvas {
     linear-gradient(180deg, #fffdf7 0%, #fbf3e7 100%);
 }
 
+#planeCanvas {
+  cursor: grab;
+  touch-action: none;
+}
+
+#planeCanvas.dragging {
+  cursor: grabbing;
+}
+
 .panel {
   padding: 9px;
   border: 1px solid var(--line);
@@ -249,6 +258,12 @@ canvas {
   border-bottom: none;
 }
 
+.metric-label-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .metric-label {
   color: var(--muted);
   font-size: 0.85rem;
@@ -268,6 +283,13 @@ canvas {
 .metric-note .metric-value {
   text-align: left;
   color: #7c2f1d;
+}
+
+.metric-help-btn {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  font-size: 0.7rem;
 }
 
 button {
@@ -372,7 +394,19 @@ body.sidebar-collapsed .sidebar-toggle {
   margin: 0;
   color: var(--muted);
   line-height: 1.45;
-  white-space: pre-wrap;
+}
+
+#helpBody p {
+  margin: 0 0 8px;
+}
+
+#helpBody p:last-child {
+  margin-bottom: 0;
+}
+
+#helpBody .expr {
+  font-family: "IBM Plex Mono", "Fira Code", monospace;
+  color: #2c241c;
 }
 
 @media (max-width: 1320px) {

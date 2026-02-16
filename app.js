@@ -21,7 +21,6 @@
   const helpClose = document.getElementById("helpClose");
   const helpTitle = document.getElementById("helpTitle");
   const helpBody = document.getElementById("helpBody");
-  const helpButtons = document.querySelectorAll("[data-help-key]");
 
   const distancePanel = document.getElementById("distancePanel");
   const jacobianPanel = document.getElementById("jacobianPanel");
@@ -50,6 +49,21 @@
       lastX: 0,
       lastY: 0
     },
+    planeView: {
+      centerU: 0,
+      centerV: 0
+    },
+    planeDrag: {
+      active: false,
+      lastX: 0,
+      lastY: 0
+    },
+    planeTouch: {
+      mode: "",
+      prevDist: 0,
+      prevMidX: 0,
+      prevMidY: 0
+    },
     points: {
       A: normalize([0.85, 0.2, 0.49]),
       B: normalize([-0.45, 0.78, 0.43]),
@@ -75,8 +89,8 @@
     },
     sampleT: {
       title: "局部分析点",
-      body:
-        "t∈[0,1] 表示沿 A->B 大圆段插值位置。Jacobian、畸变与协变性数值都在该点处计算。"
+      bodyHtml:
+        "<p><span class='expr'>t ∈ [0,1]</span> 表示沿 <span class='expr'>A→B</span> 的大圆插值位置。</p><p>局部 <span class='expr'>J</span>、畸变、协变性都在该点计算。</p>"
     },
     showJacobianViz: {
       title: "Jacobian 几何可视化",
@@ -90,23 +104,23 @@
     },
     planeRadius: {
       title: "切平面视图半径",
-      body:
-        "控制右侧显示窗口 [-R,R]^2。R 小会放大局部细节，R 大可看到更大范围但细节更密。"
+      bodyHtml:
+        "<p>控制显示窗口 <span class='expr'>[-R,R]²</span>。</p><p><span class='expr'>R</span> 越小越放大，越大视野越广。</p>"
     },
     alpha: {
       title: "协变性参数 α",
-      body:
-        "用于坐标变换 v = lon + α sin(lat)。改变 α 可测试不同坐标系下度量分量变化与 ds^2 不变量。"
+      bodyHtml:
+        "<p>用于坐标变换 <span class='expr'>v = lon + α sin(lat)</span>。</p><p>改变 <span class='expr'>α</span> 可观察度量分量变化与 <span class='expr'>ds²</span> 不变量。</p>"
     },
     du: {
       title: "测试向量 du",
-      body:
-        "协变性测试中的坐标增量分量之一，与 dv 组成 dξ=(du,dv)，用于比较变换前后 ds^2 是否一致。"
+      bodyHtml:
+        "<p>协变性测试向量分量：<span class='expr'>dξ = (du,dv)</span>。</p><p>与 <span class='expr'>dv</span> 一起决定比较 <span class='expr'>ds²</span> 的方向与幅度。</p>"
     },
     dv: {
       title: "测试向量 dv",
-      body:
-        "协变性测试中的另一分量。与 du 一起决定测试方向与幅度，数值不宜过大以避免高阶误差。"
+      bodyHtml:
+        "<p>协变性测试向量另一分量，和 <span class='expr'>du</span> 共同构成 <span class='expr'>dξ</span>。</p><p>建议小量，避免高阶误差。</p>"
     },
     autoFitPlane: {
       title: "自动缩放",
@@ -120,8 +134,8 @@
     },
     covFormula: {
       title: "广义协变性公式",
-      body:
-        "展示三个核心关系：线元定义 ds^2=g_ij dx^i dx^j；度量协变变换 g'=(∂x/∂u)^T g (∂x/∂u)；测地线方程 d^2x^k/ds^2+Γ^k_ij x'^i x'^j=0。"
+      bodyHtml:
+        "<p class='expr'>ds² = g<sub>ij</sub>dx<sup>i</sup>dx<sup>j</sup></p><p class='expr'>g′<sub>ab</sub> = (∂x<sup>i</sup>/∂u<sup>a</sup>)(∂x<sup>j</sup>/∂u<sup>b</sup>)g<sub>ij</sub></p><p class='expr'>d²x<sup>k</sup>/ds² + Γ<sup>k</sup><sub>ij</sub>(dx<sup>i</sup>/ds)(dx<sup>j</sup>/ds)=0</p>"
     },
     distancePanel: {
       title: "距离与弧长变化",
@@ -135,8 +149,84 @@
     },
     covariancePanel: {
       title: "协变性与测地线验证",
-      body:
-        "显示 g 与 g'、ds^2 误差、Christoffel 符号和大圆测地线残差，验证物理几何量在坐标变换下保持一致。"
+      bodyHtml:
+        "<p>显示 <span class='expr'>g, g′, ds²</span> 误差和 Christoffel 符号，验证坐标变换前后几何量一致。</p>"
+    },
+    m_proj: {
+      title: "投影 π",
+      bodyHtml: "<p>当前球面到切平面的映射 <span class='expr'>π : S² → T<sub>T</sub>S²</span>。</p>"
+    },
+    m_point: {
+      title: "位置参数",
+      bodyHtml: "<p>当前分析/测试点在球面上的地理坐标 <span class='expr'>(lat, lon)</span>（单位：度）。</p>"
+    },
+    m_ds: {
+      title: "dₛ(A,B)",
+      bodyHtml: "<p>球面测地距离（大圆弧长）<span class='expr'>d<sub>S</sub>(A,B)</span>。</p>"
+    },
+    m_dp: {
+      title: "dₚ(A′,B′)",
+      bodyHtml: "<p>投影后平面欧氏距离 <span class='expr'>d<sub>P</sub>(A′,B′)</span>。</p>"
+    },
+    m_rho: {
+      title: "ρ = dₚ/dₛ",
+      bodyHtml: "<p>点间距离放缩比 <span class='expr'>ρ = d<sub>P</sub>/d<sub>S</sub></span>。</p>"
+    },
+    m_lpi: {
+      title: "L(π(AB))",
+      bodyHtml: "<p>曲线 <span class='expr'>AB</span> 投影后的弧长 <span class='expr'>L(π(AB))</span>。</p>"
+    },
+    m_lambda: {
+      title: "λ = L(π(AB))/dₛ",
+      bodyHtml: "<p>弧长放缩比 <span class='expr'>λ = L(π(AB))/d<sub>S</sub></span>。</p>"
+    },
+    m_ca: {
+      title: "cA",
+      bodyHtml: "<p><span class='expr'>c<sub>A</sub> = A·T</span>，衡量点 A 相对切平面的可见性/奇异性距离。</p>"
+    },
+    m_cb: {
+      title: "cB",
+      bodyHtml: "<p><span class='expr'>c<sub>B</sub> = B·T</span>，越接近奇异条件，投影越不稳定。</p>"
+    },
+    m_j: {
+      title: "Jacobian 分量",
+      bodyHtml: "<p><span class='expr'>J = ∂(u,v)/∂(ξ¹,ξ²)</span>，表示局部线性近似。</p>"
+    },
+    m_jtj: {
+      title: "JᵀJ",
+      bodyHtml: "<p><span class='expr'>JᵀJ</span> 是拉回度量，直接反映长度和角度畸变。</p>"
+    },
+    m_detj: {
+      title: "det(J)",
+      bodyHtml: "<p><span class='expr'>det(J)</span> 的绝对值对应面积缩放。</p>"
+    },
+    m_sigma: {
+      title: "σ₁, σ₂",
+      bodyHtml: "<p>主伸缩（奇异值）<span class='expr'>σ₁, σ₂</span>，给出两个主方向的放缩倍率。</p>"
+    },
+    m_kappa: {
+      title: "κ = σ₁/σ₂",
+      bodyHtml: "<p>各向异性比 <span class='expr'>κ = σ₁/σ₂</span>，越大表示角畸变越明显。</p>"
+    },
+    m_theta: {
+      title: "θmax",
+      bodyHtml: "<p>最大角偏差估计 <span class='expr'>θ<sub>max</sub></span>（度）。</p>"
+    },
+    m_g: {
+      title: "度量分量 g, g′",
+      bodyHtml: "<p><span class='expr'>g</span> 与 <span class='expr'>g′</span> 是不同坐标表示下的度量分量。</p>"
+    },
+    m_ds2: {
+      title: "ds² 一致性",
+      bodyHtml: "<p>比较 <span class='expr'>ds²<sub>old</sub></span> 与 <span class='expr'>ds²<sub>new</sub></span>，检验协变性。</p>"
+    },
+    m_gamma: {
+      title: "Γ 符号",
+      bodyHtml: "<p>Christoffel 符号 <span class='expr'>Γ</span> 描述联络，出现在测地线方程中。</p>"
+    },
+    m_res: {
+      title: "测地线残差",
+      bodyHtml: "<p>方程残差越小，说明数值轨迹越接近理论测地线。</p>"
     }
   };
 
@@ -202,7 +292,10 @@
     el.innerHTML = rows
       .map((row) => {
         const extra = row.note ? " metric-note" : "";
-        return `<div class="metric-row${extra}"><div class="metric-label">${row.label}</div><div class="metric-value">${row.value}</div></div>`;
+        const helpBtn = row.helpKey
+          ? `<button class="help-btn metric-help-btn" type="button" data-help-key="${row.helpKey}" aria-label="${row.helpAria || "参数说明"}" title="${row.helpTitle || "参数说明"}">ⓘ</button>`
+          : "";
+        return `<div class="metric-row${extra}"><div class="metric-label-wrap"><span class="metric-label">${row.label}</span>${helpBtn}</div><div class="metric-value">${row.value}</div></div>`;
       })
       .join("");
   }
@@ -270,9 +363,9 @@
   }
 
   function openHelpDialog(key) {
-    const item = helpText[key] || { title: "说明", body: "暂无说明。" };
+    const item = helpText[key] || { title: "说明", bodyHtml: "暂无说明。" };
     helpTitle.textContent = item.title;
-    helpBody.textContent = item.body;
+    helpBody.innerHTML = item.bodyHtml || item.body || "暂无说明。";
     helpOverlay.hidden = false;
   }
 
@@ -331,7 +424,7 @@
       1.2
     );
 
-    const minR = Number(planeRadius.min) || 1.5;
+    const minR = Number(planeRadius.min) || 0.2;
     const maxR = Number(planeRadius.max) || 30;
     state.planeRadius = clamp(candidate * 1.2, minR, maxR);
   }
@@ -672,24 +765,51 @@
     return `rgb(${r}, ${g}, ${b})`;
   }
 
-  function drawPlaneView() {
-    const ctx = planeCanvas.getContext("2d");
+  function planeCanvasGeometry() {
     const w = planeCanvas.width;
     const h = planeCanvas.height;
+    return {
+      w,
+      h,
+      cx: w * 0.5,
+      cy: h * 0.5,
+      scalePx: Math.min(w, h) * 0.45
+    };
+  }
+
+  function planeClientToUv(clientX, clientY, centerU = state.planeView.centerU, centerV = state.planeView.centerV, radius = state.planeRadius) {
+    const rect = planeCanvas.getBoundingClientRect();
+    const x = ((clientX - rect.left) / rect.width) * planeCanvas.width;
+    const y = ((clientY - rect.top) / rect.height) * planeCanvas.height;
+    const g = planeCanvasGeometry();
+    return {
+      u: centerU + ((x - g.cx) / g.scalePx) * radius,
+      v: centerV - ((y - g.cy) / g.scalePx) * radius
+    };
+  }
+
+  function clampPlaneRadius(r) {
+    const minR = Number(planeRadius.min) || 0.2;
+    const maxR = Number(planeRadius.max) || 30;
+    return clamp(r, minR, maxR);
+  }
+
+  function drawPlaneView() {
+    const ctx = planeCanvas.getContext("2d");
+    const geom = planeCanvasGeometry();
+    const { w, h, cx, cy, scalePx } = geom;
     ctx.clearRect(0, 0, w, h);
 
     ctx.fillStyle = "#fffdf7";
     ctx.fillRect(0, 0, w, h);
-
-    const cx = w * 0.5;
-    const cy = h * 0.5;
-    const scalePx = Math.min(w, h) * 0.45;
     const radius = state.planeRadius;
+    const centerU = state.planeView.centerU;
+    const centerV = state.planeView.centerV;
 
     function uvToCanvas(u, v) {
       return {
-        x: cx + (u / radius) * scalePx,
-        y: cy - (v / radius) * scalePx
+        x: cx + ((u - centerU) / radius) * scalePx,
+        y: cy - ((v - centerV) / radius) * scalePx
       };
     }
 
@@ -725,7 +845,12 @@
         if (!pp.valid || !qq.valid) {
           continue;
         }
-        const maxUv = Math.max(Math.abs(pp.u), Math.abs(pp.v), Math.abs(qq.u), Math.abs(qq.v));
+        const maxUv = Math.max(
+          Math.abs(pp.u - centerU),
+          Math.abs(pp.v - centerV),
+          Math.abs(qq.u - centerU),
+          Math.abs(qq.v - centerV)
+        );
         if (maxUv > radius * 1.5) {
           continue;
         }
@@ -766,7 +891,7 @@
     let hasStarted = false;
     for (let i = 0; i < arc.length; i += 1) {
       const pr = projectPointToPlane(arc[i], state.projection, t, basis);
-      if (!pr.valid || Math.max(Math.abs(pr.u), Math.abs(pr.v)) > radius * 1.5) {
+      if (!pr.valid || Math.max(Math.abs(pr.u - centerU), Math.abs(pr.v - centerV)) > radius * 1.5) {
         hasStarted = false;
         continue;
       }
@@ -785,7 +910,7 @@
       if (!pr.valid) {
         return;
       }
-      if (Math.max(Math.abs(pr.u), Math.abs(pr.v)) > radius * 1.5) {
+      if (Math.max(Math.abs(pr.u - centerU), Math.abs(pr.v - centerV)) > radius * 1.5) {
         return;
       }
       const cpt = uvToCanvas(pr.u, pr.v);
@@ -904,13 +1029,14 @@
     ctx.fillStyle = "#5d564e";
     ctx.font = "12px IBM Plex Sans, sans-serif";
     ctx.fillText("网格颜色=面积畸变 |det(J)|", 12, 20);
-    ctx.fillText(`当前平面窗口: [-${radius.toFixed(1)}, ${radius.toFixed(1)}]^2`, 12, 38);
+    ctx.fillText(`中心: (${fmt4(centerU)}, ${fmt4(centerV)})`, 12, 38);
+    ctx.fillText(`窗口半径 R: ${radius.toFixed(2)} | 拖拽平移, 滚轮/双指缩放`, 12, 56);
     if (state.showJacobianViz) {
-      ctx.fillText("紫色椭圆=J(单位圆), 红/绿轴=主伸缩方向", 12, 56);
+      ctx.fillText("紫色椭圆=J(单位圆), 红/绿轴=主伸缩方向", 12, 74);
     }
   }
 
-  function geodesicPlaneArcLength(points, projection, t, basis, radius) {
+  function geodesicPlaneArcLength(points, projection, t, basis) {
     let total = 0;
     let prev = null;
 
@@ -920,7 +1046,7 @@
         prev = null;
         continue;
       }
-      if (Math.max(Math.abs(pr.u), Math.abs(pr.v)) > radius * 1.5) {
+      if (Math.max(Math.abs(pr.u), Math.abs(pr.v)) > 1e4) {
         prev = null;
         continue;
       }
@@ -945,7 +1071,7 @@
     const dPlane = pA.valid && pB.valid ? Math.hypot(pA.u - pB.u, pA.v - pB.v) : NaN;
 
     const arc = sampleGeodesic(A, B, 320);
-    const lPlane = geodesicPlaneArcLength(arc, state.projection, t, basis, state.planeRadius);
+    const lPlane = geodesicPlaneArcLength(arc, state.projection, t, basis);
 
     return { dSphere, dPlane, lPlane, pA, pB };
   }
@@ -1120,22 +1246,22 @@
     const cov = buildCovariancePanelData();
 
     const distanceRows = [
-      { label: "投影 π", value: state.projection },
-      { label: "d<sub>S</sub>(A,B)", value: fmt4(dist.dSphere) },
-      { label: "d<sub>P</sub>(A′,B′)", value: Number.isFinite(dist.dPlane) ? fmt4(dist.dPlane) : "不可定义" },
-      { label: "ρ = d<sub>P</sub>/d<sub>S</sub>", value: Number.isFinite(dist.dPlane) ? fmt4(dist.dPlane / dist.dSphere) : "—" },
-      { label: "L(π(AB))", value: fmt4(dist.lPlane) },
-      { label: "λ = L(π(AB))/d<sub>S</sub>", value: fmt4(dist.lPlane / dist.dSphere) },
-      { label: "A 可投影", value: `${yesNo(dist.pA.valid)} · c<sub>A</sub>=${fmt4(dist.pA.c)}` },
-      { label: "B 可投影", value: `${yesNo(dist.pB.valid)} · c<sub>B</sub>=${fmt4(dist.pB.c)}` }
+      { label: "投影 π", value: state.projection, helpKey: "m_proj", helpAria: "投影参数说明" },
+      { label: "d<sub>S</sub>(A,B)", value: fmt4(dist.dSphere), helpKey: "m_ds", helpAria: "球面测地距离说明" },
+      { label: "d<sub>P</sub>(A′,B′)", value: Number.isFinite(dist.dPlane) ? fmt4(dist.dPlane) : "不可定义", helpKey: "m_dp", helpAria: "平面欧氏距离说明" },
+      { label: "ρ = d<sub>P</sub>/d<sub>S</sub>", value: Number.isFinite(dist.dPlane) ? fmt4(dist.dPlane / dist.dSphere) : "—", helpKey: "m_rho", helpAria: "距离比说明" },
+      { label: "L(π(AB))", value: fmt4(dist.lPlane), helpKey: "m_lpi", helpAria: "投影曲线弧长说明" },
+      { label: "λ = L(π(AB))/d<sub>S</sub>", value: fmt4(dist.lPlane / dist.dSphere), helpKey: "m_lambda", helpAria: "弧长比说明" },
+      { label: "A 可投影", value: `${yesNo(dist.pA.valid)} · c<sub>A</sub>=${fmt4(dist.pA.c)}`, helpKey: "m_ca", helpAria: "A点可投影说明" },
+      { label: "B 可投影", value: `${yesNo(dist.pB.valid)} · c<sub>B</sub>=${fmt4(dist.pB.c)}`, helpKey: "m_cb", helpAria: "B点可投影说明" }
     ];
     renderMetricRows(distancePanel, distanceRows);
 
     const xLL = pointToLatLon(jac.x);
     const jacRows = [
-      { label: "分析点 t", value: fmt4(state.sampleT) },
-      { label: "lat / lon (°)", value: `${fmtDeg4(xLL.lat)} / ${fmtDeg4(xLL.lon)}` },
-      { label: "几何图", value: `${state.showJacobianViz ? "开" : "关"} · 尺度 ${fmt4(state.jacobianGlyphScale)}` }
+      { label: "分析点 t", value: fmt4(state.sampleT), helpKey: "sampleT", helpAria: "分析点参数说明" },
+      { label: "lat / lon (°)", value: `${fmtDeg4(xLL.lat)} / ${fmtDeg4(xLL.lon)}`, helpKey: "m_point", helpAria: "位置参数说明" },
+      { label: "几何图", value: `${state.showJacobianViz ? "开" : "关"} · 尺度 ${fmt4(state.jacobianGlyphScale)}`, helpKey: "showJacobianViz", helpAria: "几何图参数说明" }
     ];
     if (!jac.local) {
       jacRows.push({
@@ -1145,30 +1271,30 @@
       });
     } else {
       jacRows.push(
-        { label: "J<sub>11</sub>, J<sub>12</sub>", value: `${fmt4(jac.local.M[0][0])}, ${fmt4(jac.local.M[0][1])}` },
-        { label: "J<sub>21</sub>, J<sub>22</sub>", value: `${fmt4(jac.local.M[1][0])}, ${fmt4(jac.local.M[1][1])}` },
-        { label: "(J<sup>T</sup>J)<sub>11</sub>, (J<sup>T</sup>J)<sub>12</sub>", value: `${fmt4(jac.local.C[0][0])}, ${fmt4(jac.local.C[0][1])}` },
-        { label: "(J<sup>T</sup>J)<sub>22</sub>", value: fmt4(jac.local.C[1][1]) },
-        { label: "det(J)", value: fmt4(jac.local.detM) },
-        { label: "σ<sub>1</sub>, σ<sub>2</sub>", value: `${fmt4(jac.s1)}, ${fmt4(jac.s2)}` },
-        { label: "|det(J)|", value: fmt4(jac.area) },
-        { label: "κ = σ<sub>1</sub>/σ<sub>2</sub>", value: fmt4(jac.anisotropy) },
-        { label: "θ<sub>max</sub> (°)", value: fmt4(jac.angleErr) }
+        { label: "J<sub>11</sub>, J<sub>12</sub>", value: `${fmt4(jac.local.M[0][0])}, ${fmt4(jac.local.M[0][1])}`, helpKey: "m_j", helpAria: "Jacobian 分量说明" },
+        { label: "J<sub>21</sub>, J<sub>22</sub>", value: `${fmt4(jac.local.M[1][0])}, ${fmt4(jac.local.M[1][1])}`, helpKey: "m_j", helpAria: "Jacobian 分量说明" },
+        { label: "(J<sup>T</sup>J)<sub>11</sub>, (J<sup>T</sup>J)<sub>12</sub>", value: `${fmt4(jac.local.C[0][0])}, ${fmt4(jac.local.C[0][1])}`, helpKey: "m_jtj", helpAria: "J转置J说明" },
+        { label: "(J<sup>T</sup>J)<sub>22</sub>", value: fmt4(jac.local.C[1][1]), helpKey: "m_jtj", helpAria: "J转置J说明" },
+        { label: "det(J)", value: fmt4(jac.local.detM), helpKey: "m_detj", helpAria: "det(J) 说明" },
+        { label: "σ<sub>1</sub>, σ<sub>2</sub>", value: `${fmt4(jac.s1)}, ${fmt4(jac.s2)}`, helpKey: "m_sigma", helpAria: "主伸缩说明" },
+        { label: "|det(J)|", value: fmt4(jac.area), helpKey: "m_detj", helpAria: "|det(J)| 说明" },
+        { label: "κ = σ<sub>1</sub>/σ<sub>2</sub>", value: fmt4(jac.anisotropy), helpKey: "m_kappa", helpAria: "各向异性说明" },
+        { label: "θ<sub>max</sub> (°)", value: fmt4(jac.angleErr), helpKey: "m_theta", helpAria: "角偏差说明" }
       );
     }
     renderMetricRows(jacobianPanel, jacRows);
 
     const covRows = [
-      { label: "测试点 lat / lon (°)", value: `${fmtDeg4(cov.lat)} / ${fmtDeg4(cov.lon)}` },
-      { label: "α", value: fmt4(state.alpha) },
-      { label: "g<sub>11</sub>, g<sub>22</sub>", value: `${fmt4(cov.g[0][0])}, ${fmt4(cov.g[1][1])}` },
-      { label: "g′<sub>11</sub>, g′<sub>12</sub>", value: `${fmt4(cov.gPrime[0][0])}, ${fmt4(cov.gPrime[0][1])}` },
-      { label: "g′<sub>22</sub>", value: fmt4(cov.gPrime[1][1]) },
-      { label: "ds²<sub>old</sub>, ds²<sub>new</sub>", value: `${fmt4(cov.dsOld)}, ${fmt4(cov.dsNew)}` },
-      { label: "|Δds²|", value: fmt4(cov.dsErr) },
-      { label: "Γ<sup>φ</sup><sub>λλ</sub>", value: fmt4(cov.ch.G_lat_lonlon) },
-      { label: "Γ<sup>λ</sup><sub>φλ</sub>", value: fmt4(cov.ch.G_lon_latlon) },
-      { label: "测地线残差 max / mean", value: `${fmt4(cov.residual.max)} / ${fmt4(cov.residual.mean)}` }
+      { label: "测试点 lat / lon (°)", value: `${fmtDeg4(cov.lat)} / ${fmtDeg4(cov.lon)}`, helpKey: "m_point", helpAria: "测试点说明" },
+      { label: "α", value: fmt4(state.alpha), helpKey: "alpha", helpAria: "alpha 参数说明" },
+      { label: "g<sub>11</sub>, g<sub>22</sub>", value: `${fmt4(cov.g[0][0])}, ${fmt4(cov.g[1][1])}`, helpKey: "m_g", helpAria: "度量说明" },
+      { label: "g′<sub>11</sub>, g′<sub>12</sub>", value: `${fmt4(cov.gPrime[0][0])}, ${fmt4(cov.gPrime[0][1])}`, helpKey: "m_g", helpAria: "变换后度量说明" },
+      { label: "g′<sub>22</sub>", value: fmt4(cov.gPrime[1][1]), helpKey: "m_g", helpAria: "变换后度量说明" },
+      { label: "ds²<sub>old</sub>, ds²<sub>new</sub>", value: `${fmt4(cov.dsOld)}, ${fmt4(cov.dsNew)}`, helpKey: "m_ds2", helpAria: "线元一致性说明" },
+      { label: "|Δds²|", value: fmt4(cov.dsErr), helpKey: "m_ds2", helpAria: "线元误差说明" },
+      { label: "Γ<sup>φ</sup><sub>λλ</sub>", value: fmt4(cov.ch.G_lat_lonlon), helpKey: "m_gamma", helpAria: "Christoffel 说明" },
+      { label: "Γ<sup>λ</sup><sub>φλ</sub>", value: fmt4(cov.ch.G_lon_latlon), helpKey: "m_gamma", helpAria: "Christoffel 说明" },
+      { label: "测地线残差 max / mean", value: `${fmt4(cov.residual.max)} / ${fmt4(cov.residual.mean)}`, helpKey: "m_res", helpAria: "残差说明" }
     ];
     renderMetricRows(covariancePanel, covRows);
   }
@@ -1245,11 +1371,13 @@
   }
 
   function handleHelpButtons() {
-    for (const btn of helpButtons) {
-      btn.addEventListener("click", () => {
-        openHelpDialog(btn.dataset.helpKey);
-      });
-    }
+    document.addEventListener("click", (ev) => {
+      const btn = ev.target.closest("[data-help-key]");
+      if (!btn) {
+        return;
+      }
+      openHelpDialog(btn.dataset.helpKey);
+    });
 
     helpClose.addEventListener("click", closeHelpDialog);
 
@@ -1327,6 +1455,129 @@
     });
   }
 
+  function handlePlaneCanvasInteraction() {
+    planeCanvas.addEventListener("mousedown", (ev) => {
+      state.planeDrag.active = true;
+      state.planeDrag.lastX = ev.clientX;
+      state.planeDrag.lastY = ev.clientY;
+      planeCanvas.classList.add("dragging");
+    });
+
+    window.addEventListener("mousemove", (ev) => {
+      if (!state.planeDrag.active) {
+        return;
+      }
+      const prev = planeClientToUv(state.planeDrag.lastX, state.planeDrag.lastY);
+      const now = planeClientToUv(ev.clientX, ev.clientY);
+      state.planeView.centerU -= now.u - prev.u;
+      state.planeView.centerV -= now.v - prev.v;
+      state.planeDrag.lastX = ev.clientX;
+      state.planeDrag.lastY = ev.clientY;
+      renderAll();
+    });
+
+    window.addEventListener("mouseup", () => {
+      state.planeDrag.active = false;
+      planeCanvas.classList.remove("dragging");
+    });
+
+    planeCanvas.addEventListener("wheel", (ev) => {
+      ev.preventDefault();
+      const before = planeClientToUv(ev.clientX, ev.clientY);
+      const factor = Math.exp(ev.deltaY * 0.0012);
+      const newR = clampPlaneRadius(state.planeRadius * factor);
+      state.planeRadius = newR;
+      const after = planeClientToUv(ev.clientX, ev.clientY);
+      state.planeView.centerU += before.u - after.u;
+      state.planeView.centerV += before.v - after.v;
+      renderAll();
+    }, { passive: false });
+
+    function touchDist(t0, t1) {
+      return Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+    }
+
+    function touchMid(t0, t1) {
+      return {
+        x: 0.5 * (t0.clientX + t1.clientX),
+        y: 0.5 * (t0.clientY + t1.clientY)
+      };
+    }
+
+    planeCanvas.addEventListener("touchstart", (ev) => {
+      if (ev.touches.length === 1) {
+        const t = ev.touches[0];
+        state.planeTouch.mode = "pan";
+        state.planeTouch.prevMidX = t.clientX;
+        state.planeTouch.prevMidY = t.clientY;
+        planeCanvas.classList.add("dragging");
+      } else if (ev.touches.length >= 2) {
+        const t0 = ev.touches[0];
+        const t1 = ev.touches[1];
+        const mid = touchMid(t0, t1);
+        state.planeTouch.mode = "pinch";
+        state.planeTouch.prevDist = touchDist(t0, t1);
+        state.planeTouch.prevMidX = mid.x;
+        state.planeTouch.prevMidY = mid.y;
+      }
+    }, { passive: true });
+
+    planeCanvas.addEventListener("touchmove", (ev) => {
+      if (ev.touches.length === 1 && state.planeTouch.mode === "pan") {
+        ev.preventDefault();
+        const t = ev.touches[0];
+        const prev = planeClientToUv(state.planeTouch.prevMidX, state.planeTouch.prevMidY);
+        const now = planeClientToUv(t.clientX, t.clientY);
+        state.planeView.centerU -= now.u - prev.u;
+        state.planeView.centerV -= now.v - prev.v;
+        state.planeTouch.prevMidX = t.clientX;
+        state.planeTouch.prevMidY = t.clientY;
+        renderAll();
+      } else if (ev.touches.length >= 2) {
+        ev.preventDefault();
+        const t0 = ev.touches[0];
+        const t1 = ev.touches[1];
+        const mid = touchMid(t0, t1);
+        const dist = Math.max(5, touchDist(t0, t1));
+
+        const prevMidUV = planeClientToUv(state.planeTouch.prevMidX, state.planeTouch.prevMidY);
+        const nowMidUV = planeClientToUv(mid.x, mid.y);
+        state.planeView.centerU -= nowMidUV.u - prevMidUV.u;
+        state.planeView.centerV -= nowMidUV.v - prevMidUV.v;
+
+        const before = planeClientToUv(mid.x, mid.y);
+        const factor = state.planeTouch.prevDist / dist;
+        state.planeRadius = clampPlaneRadius(state.planeRadius * factor);
+        const after = planeClientToUv(mid.x, mid.y);
+        state.planeView.centerU += before.u - after.u;
+        state.planeView.centerV += before.v - after.v;
+
+        state.planeTouch.prevDist = dist;
+        state.planeTouch.prevMidX = mid.x;
+        state.planeTouch.prevMidY = mid.y;
+        state.planeTouch.mode = "pinch";
+        renderAll();
+      }
+    }, { passive: false });
+
+    planeCanvas.addEventListener("touchend", (ev) => {
+      if (ev.touches.length === 0) {
+        state.planeTouch.mode = "";
+        planeCanvas.classList.remove("dragging");
+      } else if (ev.touches.length === 1) {
+        state.planeTouch.mode = "pan";
+        state.planeTouch.prevMidX = ev.touches[0].clientX;
+        state.planeTouch.prevMidY = ev.touches[0].clientY;
+        planeCanvas.classList.add("dragging");
+      }
+    });
+
+    planeCanvas.addEventListener("touchcancel", () => {
+      state.planeTouch.mode = "";
+      planeCanvas.classList.remove("dragging");
+    });
+  }
+
   function handleResize() {
     function fitCanvas(canvas) {
       const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -1354,6 +1605,7 @@
   handleHelpButtons();
   setSidebarCollapsed(false);
   handleSphereCanvasInteraction();
+  handlePlaneCanvasInteraction();
   handleResize();
   renderAll();
 })();
