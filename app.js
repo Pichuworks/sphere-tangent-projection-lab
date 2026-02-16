@@ -238,7 +238,10 @@
 
   function setSidebarCollapsed(collapsed) {
     document.body.classList.toggle("sidebar-collapsed", collapsed);
-    sidebarToggle.textContent = collapsed ? "展开分析栏" : "收起分析栏";
+    sidebarToggle.textContent = collapsed ? "▸" : "◂";
+    const tip = collapsed ? "展开分析栏" : "收起分析栏";
+    sidebarToggle.setAttribute("title", tip);
+    sidebarToggle.setAttribute("aria-label", tip);
     sidebarToggle.setAttribute("aria-expanded", String(!collapsed));
     analysisSidebar.setAttribute("aria-hidden", String(collapsed));
   }
