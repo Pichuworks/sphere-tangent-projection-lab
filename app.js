@@ -77,7 +77,7 @@
     projection: {
       title: "投影类型",
       body:
-        "Gnomonic 保大圆为直线，但距离与面积畸变增长快；Stereographic 保角但不保面积；Orthographic 视觉直观但会压缩远离切点区域；Cotangent（余切）在切点附近增长更快，可用于观察强非线性局部畸变。"
+        "Gnomonic 保大圆为直线，但距离与面积畸变增长快；Stereographic 保角但不保面积；Orthographic 视觉直观但会压缩远离切点区域；Cotangent Cylindrical 使用柱面展开坐标 (u=θ, v=cot(ψ))，用于观察强非线性局部畸变。"
     },
     lockNorth: {
       title: "切点锁定北极",
@@ -244,6 +244,21 @@
 
   function clamp(x, a, b) {
     return Math.max(a, Math.min(b, x));
+  }
+
+  function wrapAnglePi(a) {
+    let x = a;
+    while (x <= -Math.PI) {
+      x += 2 * Math.PI;
+    }
+    while (x > Math.PI) {
+      x -= 2 * Math.PI;
+    }
+    return x;
+  }
+
+  function angleDiff(a, b) {
+    return wrapAnglePi(a - b);
   }
 
   function dot(a, b) {
@@ -508,10 +523,13 @@
     } else if (projection === "cotangent") {
       const s = Math.sqrt(Math.max(0, 1 - c * c));
       if (s <= 1e-6) {
-        return { valid: false, reason: "near tangent point", c };
+        return { valid: false, reason: "near axis singularity", c };
       }
-      const dir = scale(sub(x, scale(t, c)), 1 / s);
-      y = add(t, scale(dir, c / s));
+      const e1Comp = dot(x, basis.e1);
+      const e2Comp = dot(x, basis.e2);
+      const theta = Math.atan2(e2Comp, e1Comp);
+      const cot = c / s;
+      return { valid: true, u: wrapAnglePi(theta), v: cot, c, y: null };
     }
 
     const yp = sub(y, t);
@@ -531,7 +549,8 @@
         if (!up.valid || !um.valid) {
           return null;
         }
-        return [(up.u - um.u) / (2 * h), (up.v - um.v) / (2 * h)];
+        const du = projection === "cotangent" ? angleDiff(up.u, um.u) : (up.u - um.u);
+        return [du / (2 * h), (up.v - um.v) / (2 * h)];
       }
 
       const col1 = partial(localBasis.t1);
@@ -886,19 +905,19 @@
 
     const t = state.points.T;
     const basis = tangentBasisFromNormal(t);
+    const originCanvas = uvToCanvas(0, 0);
 
     ctx.strokeStyle = "#e2d7c8";
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(0, cy);
-    ctx.lineTo(w, cy);
-    ctx.moveTo(cx, 0);
-    ctx.lineTo(cx, h);
+    ctx.moveTo(0, originCanvas.y);
+    ctx.lineTo(w, originCanvas.y);
+    ctx.moveTo(originCanvas.x, 0);
+    ctx.lineTo(originCanvas.x, h);
     ctx.stroke();
 
     ctx.strokeStyle = "#cebfa9";
     ctx.setLineDash([6, 4]);
-    const originCanvas = uvToCanvas(0, 0);
     ctx.beginPath();
     ctx.arc(originCanvas.x, originCanvas.y, scalePx, 0, 2 * Math.PI);
     ctx.stroke();
@@ -915,6 +934,9 @@
         const pp = projectPointToPlane(p, state.projection, t, basis);
         const qq = projectPointToPlane(q, state.projection, t, basis);
         if (!pp.valid || !qq.valid) {
+          continue;
+        }
+        if (state.projection === "cotangent" && Math.abs(angleDiff(qq.u, pp.u)) > Math.PI * 0.85) {
           continue;
         }
         const maxUv = Math.max(
@@ -966,6 +988,13 @@
       if (!pr.valid || Math.max(Math.abs(pr.u - centerU), Math.abs(pr.v - centerV)) > radius * 1.5) {
         hasStarted = false;
         continue;
+      }
+      if (state.projection === "cotangent" && i > 0) {
+        const prev = projectPointToPlane(arc[i - 1], state.projection, t, basis);
+        if (prev.valid && Math.abs(angleDiff(pr.u, prev.u)) > Math.PI * 0.85) {
+          hasStarted = false;
+          continue;
+        }
       }
       const cpt = uvToCanvas(pr.u, pr.v);
       if (!hasStarted) {
@@ -1095,7 +1124,9 @@
 
     drawProjectedPoint(state.points.A, "#8e2d17", "A'");
     drawProjectedPoint(state.points.B, "#1e6f6a", "B'");
-    drawProjectedPoint(state.points.T, "#a85b00", "T' (0,0)");
+    if (state.projection !== "cotangent") {
+      drawProjectedPoint(state.points.T, "#a85b00", "T' (0,0)");
+    }
     drawJacobianGlyph();
 
     ctx.fillStyle = "#5d564e";
@@ -1103,8 +1134,12 @@
     ctx.fillText("网格颜色=面积畸变 |det(J)|", 12, 20);
     ctx.fillText(`中心: (${fmt4(centerU)}, ${fmt4(centerV)})`, 12, 38);
     ctx.fillText(`窗口半径 R: ${radius.toFixed(2)} | 拖拽平移, 滚轮/双指缩放`, 12, 56);
+    if (state.projection === "cotangent") {
+      ctx.fillText("余切柱面坐标: u=θ, v=cot(ψ)（u 在 ±π 处有接缝）", 12, 74);
+    }
     if (state.showJacobianViz) {
-      ctx.fillText("紫色椭圆=J(单位圆), 红/绿轴=主伸缩方向", 12, 74);
+      const y = state.projection === "cotangent" ? 92 : 74;
+      ctx.fillText("紫色椭圆=J(单位圆), 红/绿轴=主伸缩方向", 12, y);
     }
   }
 
@@ -1123,7 +1158,8 @@
         continue;
       }
       if (prev) {
-        total += Math.hypot(pr.u - prev.u, pr.v - prev.v);
+        const du = projection === "cotangent" ? angleDiff(pr.u, prev.u) : (pr.u - prev.u);
+        total += Math.hypot(du, pr.v - prev.v);
       }
       prev = pr;
     }
@@ -1140,7 +1176,12 @@
 
     const pA = projectPointToPlane(A, state.projection, t, basis);
     const pB = projectPointToPlane(B, state.projection, t, basis);
-    const dPlane = pA.valid && pB.valid ? Math.hypot(pA.u - pB.u, pA.v - pB.v) : NaN;
+    const dPlane = pA.valid && pB.valid
+      ? Math.hypot(
+        state.projection === "cotangent" ? angleDiff(pA.u, pB.u) : (pA.u - pB.u),
+        pA.v - pB.v
+      )
+      : NaN;
 
     const arc = sampleGeodesic(A, B, 320);
     const lPlane = geodesicPlaneArcLength(arc, state.projection, t, basis);
