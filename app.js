@@ -320,10 +320,7 @@
       .map((row) => {
         const extra = row.note ? " metric-note" : "";
         const hint = row.hint ? `<span class="metric-hint">${row.hint}</span>` : "";
-        const helpBtn = row.helpKey
-          ? `<button class="help-btn metric-help-btn" type="button" data-help-key="${row.helpKey}" aria-label="${row.helpAria || "参数说明"}" title="${row.helpTitle || "参数说明"}">ⓘ</button>`
-          : "";
-        return `<div class="metric-row${extra}"><div class="metric-label-wrap"><div class="metric-label-block"><span class="metric-label">${row.label}</span>${hint}</div>${helpBtn}</div><div class="metric-value">${row.value}</div></div>`;
+        return `<div class="metric-row${extra}"><div class="metric-label-wrap"><div class="metric-label-block"><span class="metric-label">${row.label}</span>${hint}</div></div><div class="metric-value">${row.value}</div></div>`;
       })
       .join("");
   }

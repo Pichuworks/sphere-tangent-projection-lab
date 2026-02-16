@@ -301,13 +301,6 @@ canvas {
   color: #7c2f1d;
 }
 
-.metric-help-btn {
-  width: 16px;
-  height: 16px;
-  min-width: 16px;
-  font-size: 0.62rem;
-}
-
 button {
   border: 1px solid #baab98;
   background: #f8ecda;

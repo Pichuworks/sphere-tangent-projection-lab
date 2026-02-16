@@ -21,7 +21,6 @@
             <div class="control-item">
               <div class="control-title">
                 <span>投影类型</span>
-                <button class="help-btn" type="button" data-help-key="projection" aria-label="投影类型说明" title="投影类型说明">ⓘ</button>
               </div>
               <select id="projectionSelect">
                 <option value="gnomonic">Gnomonic（中心投影）</option>
@@ -37,13 +36,11 @@
                 <input id="lockNorth" type="checkbox" checked />
                 切点锁定北极
               </label>
-              <button class="help-btn" type="button" data-help-key="lockNorth" aria-label="切点锁定北极说明" title="切点锁定北极说明">ⓘ</button>
             </div>
 
             <div class="control-item">
               <div class="control-title">
                 <span>编辑模式</span>
-                <button class="help-btn" type="button" data-help-key="editMode" aria-label="编辑模式说明" title="编辑模式说明">ⓘ</button>
               </div>
               <select id="editMode">
                 <option value="A">设置点 A</option>
@@ -55,7 +52,6 @@
             <div class="control-item">
               <div class="control-title">
                 <span>切平面半径</span>
-                <button class="help-btn" type="button" data-help-key="planeRadius" aria-label="切平面半径说明" title="切平面半径说明">ⓘ</button>
               </div>
               <input id="planeRadius" type="range" min="0.05" max="30" step="0.01" value="4.5" />
             </div>
@@ -67,7 +63,6 @@
             <div class="control-item">
               <div class="control-title">
                 <span>分析点（A→B）</span>
-                <button class="help-btn" type="button" data-help-key="sampleT" aria-label="分析点说明" title="分析点说明">ⓘ</button>
               </div>
               <input id="sampleT" type="range" min="0" max="1" step="0.01" value="0.5" />
             </div>
@@ -77,13 +72,11 @@
                 <input id="showJacobianViz" type="checkbox" checked />
                 几何图可视化
               </label>
-              <button class="help-btn" type="button" data-help-key="showJacobianViz" aria-label="Jacobian 几何可视化说明" title="Jacobian 几何可视化说明">ⓘ</button>
             </div>
 
             <div class="control-item">
               <div class="control-title">
                 <span>图示尺度</span>
-                <button class="help-btn" type="button" data-help-key="jacobianGlyphScale" aria-label="Jacobian 图示尺度说明" title="Jacobian 图示尺度说明">ⓘ</button>
               </div>
               <input id="jacobianGlyphScale" type="range" min="0.05" max="0.7" step="0.01" value="0.2" />
             </div>
@@ -95,7 +88,6 @@
             <div class="control-item">
               <div class="control-title">
                 <span>参数 α</span>
-                <button class="help-btn" type="button" data-help-key="alpha" aria-label="协变性参数说明" title="协变性参数说明">ⓘ</button>
               </div>
               <input id="alpha" type="range" min="0" max="1" step="0.01" value="0.35" />
             </div>
@@ -103,7 +95,6 @@
             <div class="control-item">
               <div class="control-title">
                 <span>测试向量 du</span>
-                <button class="help-btn" type="button" data-help-key="du" aria-label="du 说明" title="du 说明">ⓘ</button>
               </div>
               <input id="du" type="number" step="0.001" value="0.02" />
             </div>
@@ -111,7 +102,6 @@
             <div class="control-item">
               <div class="control-title">
                 <span>测试向量 dv</span>
-                <button class="help-btn" type="button" data-help-key="dv" aria-label="dv 说明" title="dv 说明">ⓘ</button>
               </div>
               <input id="dv" type="number" step="0.001" value="0.03" />
             </div>
@@ -131,8 +121,6 @@
             <div class="plane-actions">
               <button id="autoFitPlane" class="icon-btn" type="button" aria-label="自动缩放" title="自动缩放">⤢</button>
               <button id="resetPlaneView" class="icon-btn" type="button" aria-label="复位视图" title="复位视图">↺</button>
-              <button class="help-btn" type="button" data-help-key="autoFitPlane" aria-label="自动缩放说明" title="自动缩放说明">ⓘ</button>
-              <button class="help-btn" type="button" data-help-key="resetPlaneView" aria-label="复位视图说明" title="复位视图说明">ⓘ</button>
               <span id="planeRadiusValue">R = 4.5</span>
             </div>
           </div>
