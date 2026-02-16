@@ -7,10 +7,21 @@
   const lockNorth = document.getElementById("lockNorth");
   const editMode = document.getElementById("editMode");
   const sampleT = document.getElementById("sampleT");
+  const showJacobianViz = document.getElementById("showJacobianViz");
+  const jacobianGlyphScale = document.getElementById("jacobianGlyphScale");
   const planeRadius = document.getElementById("planeRadius");
+  const autoFitPlane = document.getElementById("autoFitPlane");
+  const planeRadiusValue = document.getElementById("planeRadiusValue");
   const alphaInput = document.getElementById("alpha");
   const duInput = document.getElementById("du");
   const dvInput = document.getElementById("dv");
+  const sidebarToggle = document.getElementById("sidebarToggle");
+  const analysisSidebar = document.getElementById("analysisSidebar");
+  const helpOverlay = document.getElementById("helpOverlay");
+  const helpClose = document.getElementById("helpClose");
+  const helpTitle = document.getElementById("helpTitle");
+  const helpBody = document.getElementById("helpBody");
+  const helpButtons = document.querySelectorAll("[data-help-key]");
 
   const distancePanel = document.getElementById("distancePanel");
   const jacobianPanel = document.getElementById("jacobianPanel");
@@ -23,6 +34,8 @@
     lockNorth: lockNorth.checked,
     editMode: editMode.value,
     sampleT: Number(sampleT.value),
+    showJacobianViz: showJacobianViz.checked,
+    jacobianGlyphScale: Number(jacobianGlyphScale.value),
     planeRadius: Number(planeRadius.value),
     alpha: Number(alphaInput.value),
     du: Number(duInput.value),
@@ -41,6 +54,89 @@
       A: normalize([0.85, 0.2, 0.49]),
       B: normalize([-0.45, 0.78, 0.43]),
       T: [0, 0, 1]
+    }
+  };
+
+  const helpText = {
+    projection: {
+      title: "投影类型",
+      body:
+        "Gnomonic 保大圆为直线，但距离与面积畸变增长快；Stereographic 保角但不保面积；Orthographic 视觉直观但会压缩远离切点区域。"
+    },
+    lockNorth: {
+      title: "切点锁定北极",
+      body:
+        "开启后切点 T 固定在北极 (0,0,1)；关闭后可在球面点击任意点作为切点。投影分布和奇异区域会随 T 改变。"
+    },
+    editMode: {
+      title: "编辑模式",
+      body:
+        "设置点 A/B/T：在左侧球面视图点击即可落点。A-B 定义测地线与分析路径，T 定义切平面法向。"
+    },
+    sampleT: {
+      title: "局部分析点",
+      body:
+        "t∈[0,1] 表示沿 A->B 大圆段插值位置。Jacobian、畸变与协变性数值都在该点处计算。"
+    },
+    showJacobianViz: {
+      title: "Jacobian 几何可视化",
+      body:
+        "在切平面显示分析点 X' 处的 Jacobian 几何图：线性化方块、单位圆映射椭圆和主伸缩方向。"
+    },
+    jacobianGlyphScale: {
+      title: "Jacobian 图示尺度",
+      body:
+        "控制 Jacobian 几何图的参考尺度。适合在不同投影和缩放下调节可读性，不改变真实数值计算。"
+    },
+    planeRadius: {
+      title: "切平面视图半径",
+      body:
+        "控制右侧显示窗口 [-R,R]^2。R 小会放大局部细节，R 大可看到更大范围但细节更密。"
+    },
+    alpha: {
+      title: "协变性参数 α",
+      body:
+        "用于坐标变换 v = lon + α sin(lat)。改变 α 可测试不同坐标系下度量分量变化与 ds^2 不变量。"
+    },
+    du: {
+      title: "测试向量 du",
+      body:
+        "协变性测试中的坐标增量分量之一，与 dv 组成 dξ=(du,dv)，用于比较变换前后 ds^2 是否一致。"
+    },
+    dv: {
+      title: "测试向量 dv",
+      body:
+        "协变性测试中的另一分量。与 du 一起决定测试方向与幅度，数值不宜过大以避免高阶误差。"
+    },
+    autoFitPlane: {
+      title: "自动缩放",
+      body:
+        "根据当前投影、A/B 测地线和球面网格采样自动估计合适 R，并带安全边距，减少手动拖动半径。"
+    },
+    analysisSidebar: {
+      title: "分析面板",
+      body:
+        "侧边栏集中展示距离变化、局部微分畸变、协变性与测地线残差。可用右上角按钮收起，不影响主画布交互。"
+    },
+    covFormula: {
+      title: "广义协变性公式",
+      body:
+        "展示三个核心关系：线元定义 ds^2=g_ij dx^i dx^j；度量协变变换 g'=(∂x/∂u)^T g (∂x/∂u)；测地线方程 d^2x^k/ds^2+Γ^k_ij x'^i x'^j=0。"
+    },
+    distancePanel: {
+      title: "距离与弧长变化",
+      body:
+        "对比球面测地距离 dS、平面欧氏距离 dP 和投影曲线弧长 L(π(AB))，观察不同投影下距离如何被放大或压缩。"
+    },
+    jacobianPanel: {
+      title: "局部 Jacobian / 畸变",
+      body:
+        "使用 Jacobian J 定量描述局部伸缩；奇异值给出主方向放缩，|det(J)| 给出面积畸变，σ1/σ2 衡量角畸变。"
+    },
+    covariancePanel: {
+      title: "协变性与测地线验证",
+      body:
+        "显示 g 与 g'、ds^2 误差、Christoffel 符号和大圆测地线残差，验证物理几何量在坐标变换下保持一致。"
     }
   };
 
@@ -86,6 +182,132 @@
 
   function mat2ToString(m) {
     return `[[${m[0][0].toExponential(4)}, ${m[0][1].toExponential(4)}],\n [${m[1][0].toExponential(4)}, ${m[1][1].toExponential(4)}]]`;
+  }
+
+  function mat2Vec2Mul(m, v) {
+    return [m[0][0] * v[0] + m[0][1] * v[1], m[1][0] * v[0] + m[1][1] * v[1]];
+  }
+
+  function norm2(v) {
+    return Math.hypot(v[0], v[1]);
+  }
+
+  function normalize2(v) {
+    const n = norm2(v);
+    if (n < EPS) {
+      return [1, 0];
+    }
+    return [v[0] / n, v[1] / n];
+  }
+
+  function eigenSymmetric2x2(c11, c12, c22) {
+    const tr = c11 + c22;
+    const det = c11 * c22 - c12 * c12;
+    const disc = Math.max(0, tr * tr - 4 * det);
+    const l1 = 0.5 * (tr + Math.sqrt(disc));
+    const l2 = 0.5 * (tr - Math.sqrt(disc));
+
+    function eigenVectorFor(lambda) {
+      let v = [c12, lambda - c11];
+      if (Math.abs(v[0]) + Math.abs(v[1]) < 1e-10) {
+        v = [lambda - c22, c12];
+      }
+      return normalize2(v);
+    }
+
+    return {
+      lambda1: l1,
+      lambda2: l2,
+      v1: eigenVectorFor(l1),
+      v2: eigenVectorFor(l2)
+    };
+  }
+
+  function quantileSorted(sorted, q) {
+    if (!sorted.length) {
+      return NaN;
+    }
+    const t = clamp(q, 0, 1) * (sorted.length - 1);
+    const i = Math.floor(t);
+    const f = t - i;
+    if (i + 1 >= sorted.length) {
+      return sorted[i];
+    }
+    return sorted[i] * (1 - f) + sorted[i + 1] * f;
+  }
+
+  function setSidebarCollapsed(collapsed) {
+    document.body.classList.toggle("sidebar-collapsed", collapsed);
+    sidebarToggle.textContent = collapsed ? "展开分析栏" : "收起分析栏";
+    sidebarToggle.setAttribute("aria-expanded", String(!collapsed));
+    analysisSidebar.setAttribute("aria-hidden", String(collapsed));
+  }
+
+  function openHelpDialog(key) {
+    const item = helpText[key] || { title: "说明", body: "暂无说明。" };
+    helpTitle.textContent = item.title;
+    helpBody.textContent = item.body;
+    helpOverlay.hidden = false;
+  }
+
+  function closeHelpDialog() {
+    helpOverlay.hidden = true;
+  }
+
+  function syncPlaneRadiusUI() {
+    planeRadius.value = state.planeRadius.toFixed(1);
+    planeRadiusValue.textContent = `R = ${state.planeRadius.toFixed(2)}`;
+  }
+
+  function autoFitPlaneRadius() {
+    const t = state.points.T;
+    const basis = tangentBasisFromNormal(t);
+    const key = [];
+    const context = [];
+
+    function collectRadius(p, bucket) {
+      const pr = projectPointToPlane(p, state.projection, t, basis);
+      if (!pr.valid) {
+        return;
+      }
+      const m = Math.max(Math.abs(pr.u), Math.abs(pr.v));
+      if (Number.isFinite(m) && m > 1e-6 && m < 1e4) {
+        bucket.push(m);
+      }
+    }
+
+    collectRadius(state.points.A, key);
+    collectRadius(state.points.B, key);
+
+    const arc = sampleGeodesic(state.points.A, state.points.B, 360);
+    for (let i = 0; i < arc.length; i += 1) {
+      collectRadius(arc[i], key);
+    }
+
+    const latN = 32;
+    const lonN = 64;
+    for (let i = 0; i <= latN; i += 1) {
+      const lat = -0.5 * Math.PI + (i * Math.PI) / latN;
+      for (let j = 0; j < lonN; j += 1) {
+        const lon = -Math.PI + (2 * Math.PI * j) / lonN;
+        collectRadius(latLonToPoint(lat, lon), context);
+      }
+    }
+
+    key.sort((a, b) => a - b);
+    context.sort((a, b) => a - b);
+
+    const keyR = quantileSorted(key, 0.92);
+    const contextR = quantileSorted(context, 0.86);
+    const candidate = Math.max(
+      Number.isFinite(keyR) ? keyR : 0,
+      Number.isFinite(contextR) ? contextR : 0,
+      1.2
+    );
+
+    const minR = Number(planeRadius.min) || 1.5;
+    const maxR = Number(planeRadius.max) || 30;
+    state.planeRadius = clamp(candidate * 1.2, minR, maxR);
   }
 
   function rotateX(v, a) {
@@ -305,6 +527,34 @@
     ctx.stroke();
   }
 
+  function drawArrow2D(ctx, p0, p1, color, width) {
+    const dx = p1.x - p0.x;
+    const dy = p1.y - p0.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-6) {
+      return;
+    }
+    const ux = dx / len;
+    const uy = dy / len;
+    const head = Math.max(7, Math.min(13, 0.22 * len));
+    const wing = head * 0.45;
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.moveTo(p0.x, p0.y);
+    ctx.lineTo(p1.x, p1.y);
+    ctx.stroke();
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p1.x - ux * head - uy * wing, p1.y - uy * head + ux * wing);
+    ctx.lineTo(p1.x - ux * head + uy * wing, p1.y - uy * head - ux * wing);
+    ctx.closePath();
+    ctx.fill();
+  }
+
   function drawSphereView() {
     const ctx = sphereCanvas.getContext("2d");
     const w = sphereCanvas.width;
@@ -377,6 +627,7 @@
 
     drawPoint(state.points.A, "#8e2d17", "A");
     drawPoint(state.points.B, "#1e6f6a", "B");
+    drawPoint(slerp(state.points.A, state.points.B, state.sampleT), "#5232a7", "X");
     drawPoint(state.points.T, "#a85b00", "T");
 
     ctx.fillStyle = "#5d564e";
@@ -521,14 +772,116 @@
       ctx.fillText(label, cpt.x + 8, cpt.y - 7);
     }
 
+    function drawJacobianGlyph() {
+      if (!state.showJacobianViz) {
+        return;
+      }
+
+      const x = slerp(state.points.A, state.points.B, state.sampleT);
+      const px = projectPointToPlane(x, state.projection, t, basis);
+      if (!px.valid) {
+        return;
+      }
+
+      const local = differentialMapAtPoint(x, state.projection, t, basis, localBasisOnSphere(x));
+      if (!local) {
+        return;
+      }
+
+      const origin = uvToCanvas(px.u, px.v);
+      const M = local.M;
+      const C = local.C;
+      const ev = eigenSymmetric2x2(C[0][0], C[0][1], C[1][1]);
+      const sigma1 = Math.sqrt(Math.max(0, ev.lambda1));
+      const sigma2 = Math.sqrt(Math.max(0, ev.lambda2));
+      const baseScale = clamp(state.jacobianGlyphScale, 0.05, 0.7);
+
+      const squareCorners = [
+        [-baseScale, -baseScale],
+        [baseScale, -baseScale],
+        [baseScale, baseScale],
+        [-baseScale, baseScale]
+      ];
+
+      ctx.fillStyle = "#6e55b533";
+      ctx.strokeStyle = "#5f42aa";
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      for (let i = 0; i < squareCorners.length; i += 1) {
+        const mapped = mat2Vec2Mul(M, squareCorners[i]);
+        const cpt = uvToCanvas(px.u + mapped[0], px.v + mapped[1]);
+        if (i === 0) {
+          ctx.moveTo(cpt.x, cpt.y);
+        } else {
+          ctx.lineTo(cpt.x, cpt.y);
+        }
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.strokeStyle = "#472e97";
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      const segN = 72;
+      for (let i = 0; i <= segN; i += 1) {
+        const a = (2 * Math.PI * i) / segN;
+        const mapped = mat2Vec2Mul(M, [baseScale * Math.cos(a), baseScale * Math.sin(a)]);
+        const cpt = uvToCanvas(px.u + mapped[0], px.v + mapped[1]);
+        if (i === 0) {
+          ctx.moveTo(cpt.x, cpt.y);
+        } else {
+          ctx.lineTo(cpt.x, cpt.y);
+        }
+      }
+      ctx.stroke();
+
+      let dir1 = mat2Vec2Mul(M, ev.v1);
+      let dir2 = mat2Vec2Mul(M, ev.v2);
+      if (norm2(dir1) < 1e-8) {
+        dir1 = [1, 0];
+      }
+      if (norm2(dir2) < 1e-8) {
+        dir2 = [0, 1];
+      }
+      dir1 = normalize2(dir1);
+      dir2 = normalize2(dir2);
+
+      const axisMax = radius * 0.35;
+      const a1 = clamp(baseScale * sigma1, baseScale * 0.4, axisMax);
+      const a2 = clamp(baseScale * sigma2, baseScale * 0.35, axisMax);
+
+      const axis1End = uvToCanvas(px.u + dir1[0] * a1, px.v + dir1[1] * a1);
+      const axis2End = uvToCanvas(px.u + dir2[0] * a2, px.v + dir2[1] * a2);
+      const axis1Neg = uvToCanvas(px.u - dir1[0] * a1, px.v - dir1[1] * a1);
+      const axis2Neg = uvToCanvas(px.u - dir2[0] * a2, px.v - dir2[1] * a2);
+
+      drawArrow2D(ctx, origin, axis1End, "#b02822", 2.1);
+      drawArrow2D(ctx, origin, axis1Neg, "#b02822", 1.6);
+      drawArrow2D(ctx, origin, axis2End, "#146f66", 2.1);
+      drawArrow2D(ctx, origin, axis2Neg, "#146f66", 1.6);
+
+      ctx.fillStyle = "#5232a7";
+      ctx.beginPath();
+      ctx.arc(origin.x, origin.y, 4.2, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.fillStyle = "#1d1a16";
+      ctx.font = "12px IBM Plex Mono, monospace";
+      ctx.fillText("X' (Jacobian)", origin.x + 8, origin.y - 8);
+    }
+
     drawProjectedPoint(state.points.A, "#8e2d17", "A'");
     drawProjectedPoint(state.points.B, "#1e6f6a", "B'");
     drawProjectedPoint(state.points.T, "#a85b00", "T' (0,0)");
+    drawJacobianGlyph();
 
     ctx.fillStyle = "#5d564e";
     ctx.font = "12px IBM Plex Sans, sans-serif";
     ctx.fillText("网格颜色=面积畸变 |det(J)|", 12, 20);
     ctx.fillText(`当前平面窗口: [-${radius.toFixed(1)}, ${radius.toFixed(1)}]^2`, 12, 38);
+    if (state.showJacobianViz) {
+      ctx.fillText("紫色椭圆=J(单位圆), 红/绿轴=主伸缩方向", 12, 56);
+    }
   }
 
   function geodesicPlaneArcLength(points, projection, t, basis, radius) {
@@ -758,6 +1111,7 @@
     const xLL = pointToLatLon(jac.x);
     const jacLines = [];
     jacLines.push(`分析点 t=${state.sampleT.toFixed(2)} | lat=${(xLL.lat * 180 / Math.PI).toFixed(3)}° lon=${(xLL.lon * 180 / Math.PI).toFixed(3)}°`);
+    jacLines.push(`几何图开关: ${state.showJacobianViz ? "开" : "关"} | 图示尺度: ${state.jacobianGlyphScale.toFixed(2)}`);
     if (!jac.local) {
       jacLines.push("当前点处 Jacobian 不可定义（接近投影奇异位置）");
     } else {
@@ -787,6 +1141,7 @@
   }
 
   function renderAll() {
+    syncPlaneRadiusUI();
     drawSphereView();
     drawPlaneView();
     renderPanels();
@@ -815,8 +1170,23 @@
       renderAll();
     });
 
+    showJacobianViz.addEventListener("change", () => {
+      state.showJacobianViz = showJacobianViz.checked;
+      renderAll();
+    });
+
+    jacobianGlyphScale.addEventListener("input", () => {
+      state.jacobianGlyphScale = Number(jacobianGlyphScale.value);
+      renderAll();
+    });
+
     planeRadius.addEventListener("input", () => {
       state.planeRadius = Number(planeRadius.value);
+      renderAll();
+    });
+
+    autoFitPlane.addEventListener("click", () => {
+      autoFitPlaneRadius();
       renderAll();
     });
 
@@ -833,6 +1203,33 @@
     dvInput.addEventListener("input", () => {
       state.dv = Number(dvInput.value);
       renderAll();
+    });
+
+    sidebarToggle.addEventListener("click", () => {
+      const collapsed = !document.body.classList.contains("sidebar-collapsed");
+      setSidebarCollapsed(collapsed);
+    });
+  }
+
+  function handleHelpButtons() {
+    for (const btn of helpButtons) {
+      btn.addEventListener("click", () => {
+        openHelpDialog(btn.dataset.helpKey);
+      });
+    }
+
+    helpClose.addEventListener("click", closeHelpDialog);
+
+    helpOverlay.addEventListener("click", (ev) => {
+      if (ev.target === helpOverlay) {
+        closeHelpDialog();
+      }
+    });
+
+    window.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape" && !helpOverlay.hidden) {
+        closeHelpDialog();
+      }
     });
   }
 
@@ -921,6 +1318,8 @@
   }
 
   handleControlChanges();
+  handleHelpButtons();
+  setSidebarCollapsed(false);
   handleSphereCanvasInteraction();
   handleResize();
   renderAll();

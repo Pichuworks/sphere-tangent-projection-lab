@@ -11,53 +11,93 @@
       <section class="controls card">
         <h1>球面 -> 切平面投影实验台</h1>
         <div class="control-grid">
-          <label>
-            投影类型
+          <div class="control-item">
+            <div class="control-title">
+              <span>投影类型</span>
+              <button class="help-btn" type="button" data-help-key="projection">说明</button>
+            </div>
             <select id="projectionSelect">
               <option value="gnomonic">Gnomonic（中心投影）</option>
               <option value="stereographic">Stereographic（对径点投影）</option>
               <option value="orthographic">Orthographic（正交投影）</option>
             </select>
-          </label>
+          </div>
 
-          <label class="inline">
-            <input id="lockNorth" type="checkbox" checked />
-            切点锁定北极
-          </label>
+          <div class="control-item control-item-inline">
+            <label class="inline" for="lockNorth">
+              <input id="lockNorth" type="checkbox" checked />
+              切点锁定北极
+            </label>
+            <button class="help-btn" type="button" data-help-key="lockNorth">说明</button>
+          </div>
 
-          <label>
-            编辑模式
+          <div class="control-item">
+            <div class="control-title">
+              <span>编辑模式</span>
+              <button class="help-btn" type="button" data-help-key="editMode">说明</button>
+            </div>
             <select id="editMode">
               <option value="A">设置点 A</option>
               <option value="B">设置点 B</option>
               <option value="T">设置切点 T</option>
             </select>
-          </label>
+          </div>
 
-          <label>
-            局部分析点（沿 A->B）
+          <div class="control-item">
+            <div class="control-title">
+              <span>局部分析点（沿 A->B）</span>
+              <button class="help-btn" type="button" data-help-key="sampleT">说明</button>
+            </div>
             <input id="sampleT" type="range" min="0" max="1" step="0.01" value="0.5" />
-          </label>
+          </div>
 
-          <label>
-            切平面视图半径
-            <input id="planeRadius" type="range" min="1.5" max="10" step="0.1" value="4.5" />
-          </label>
+          <div class="control-item control-item-inline">
+            <label class="inline" for="showJacobianViz">
+              <input id="showJacobianViz" type="checkbox" checked />
+              Jacobian 几何可视化
+            </label>
+            <button class="help-btn" type="button" data-help-key="showJacobianViz">说明</button>
+          </div>
 
-          <label>
-            协变性坐标变换参数 α
+          <div class="control-item">
+            <div class="control-title">
+              <span>Jacobian 图示尺度</span>
+              <button class="help-btn" type="button" data-help-key="jacobianGlyphScale">说明</button>
+            </div>
+            <input id="jacobianGlyphScale" type="range" min="0.05" max="0.7" step="0.01" value="0.2" />
+          </div>
+
+          <div class="control-item">
+            <div class="control-title">
+              <span>切平面视图半径</span>
+              <button class="help-btn" type="button" data-help-key="planeRadius">说明</button>
+            </div>
+            <input id="planeRadius" type="range" min="1.5" max="30" step="0.1" value="4.5" />
+          </div>
+
+          <div class="control-item">
+            <div class="control-title">
+              <span>协变性坐标变换参数 α</span>
+              <button class="help-btn" type="button" data-help-key="alpha">说明</button>
+            </div>
             <input id="alpha" type="range" min="0" max="1" step="0.01" value="0.35" />
-          </label>
+          </div>
 
-          <label>
-            协变性测试向量 du
+          <div class="control-item">
+            <div class="control-title">
+              <span>协变性测试向量 du</span>
+              <button class="help-btn" type="button" data-help-key="du">说明</button>
+            </div>
             <input id="du" type="number" step="0.001" value="0.02" />
-          </label>
+          </div>
 
-          <label>
-            协变性测试向量 dv
+          <div class="control-item">
+            <div class="control-title">
+              <span>协变性测试向量 dv</span>
+              <button class="help-btn" type="button" data-help-key="dv">说明</button>
+            </div>
             <input id="dv" type="number" step="0.001" value="0.03" />
-          </label>
+          </div>
         </div>
         <p class="hint">操作：在左侧球面视图点击设置 A/B/T，拖拽左侧可旋转球体。</p>
       </section>
@@ -69,28 +109,85 @@
         </article>
 
         <article class="card view-card">
-          <h2>切平面视图</h2>
+          <div class="view-head">
+            <h2>切平面视图</h2>
+            <div class="plane-actions">
+              <button id="autoFitPlane" type="button">自动缩放</button>
+              <button class="help-btn" type="button" data-help-key="autoFitPlane">说明</button>
+              <span id="planeRadiusValue">R = 4.5</span>
+            </div>
+          </div>
           <canvas id="planeCanvas" width="640" height="520"></canvas>
         </article>
       </section>
+    </main>
 
-      <section class="panels">
-        <article class="card panel">
-          <h3>距离与弧长变化</h3>
+    <button
+      id="sidebarToggle"
+      class="sidebar-toggle"
+      type="button"
+      aria-controls="analysisSidebar"
+      aria-expanded="true"
+    >
+      收起分析栏
+    </button>
+    <aside id="analysisSidebar" class="analysis-sidebar card">
+      <div class="analysis-head">
+        <h3>分析面板</h3>
+        <button class="help-btn" type="button" data-help-key="analysisSidebar">说明</button>
+      </div>
+      <section class="analysis-stack">
+        <article class="panel formula-panel">
+          <div class="panel-head">
+            <h3>广义协变性公式</h3>
+            <button class="help-btn" type="button" data-help-key="covFormula">说明</button>
+          </div>
+          <pre id="covFormulaPanel">ds^2 = g_ij dx^i dx^j
+
+g'_(ab) = (∂x^i/∂u^a)(∂x^j/∂u^b) g_(ij)
+
+d^2x^k/ds^2 + Γ^k_(ij) (dx^i/ds)(dx^j/ds) = 0
+
+本实验坐标变换:
+u = lat,
+v = lon + α sin(lat)</pre>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <h3>距离与弧长变化</h3>
+            <button class="help-btn" type="button" data-help-key="distancePanel">说明</button>
+          </div>
           <pre id="distancePanel"></pre>
         </article>
 
-        <article class="card panel">
-          <h3>局部 Jacobian / 畸变</h3>
+        <article class="panel">
+          <div class="panel-head">
+            <h3>局部 Jacobian / 畸变</h3>
+            <button class="help-btn" type="button" data-help-key="jacobianPanel">说明</button>
+          </div>
           <pre id="jacobianPanel"></pre>
         </article>
 
-        <article class="card panel">
-          <h3>广义协变性与测地线验证</h3>
+        <article class="panel">
+          <div class="panel-head">
+            <h3>广义协变性与测地线验证</h3>
+            <button class="help-btn" type="button" data-help-key="covariancePanel">说明</button>
+          </div>
           <pre id="covariancePanel"></pre>
         </article>
       </section>
-    </main>
+    </aside>
+
+    <div id="helpOverlay" class="help-overlay" hidden>
+      <article class="help-dialog card" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+        <header class="help-header">
+          <h3 id="helpTitle">说明</h3>
+          <button id="helpClose" type="button">关闭</button>
+        </header>
+        <p id="helpBody"></p>
+      </article>
+    </div>
 
     <script src="app.js"></script>
   </body>
