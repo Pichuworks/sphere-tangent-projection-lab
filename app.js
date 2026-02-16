@@ -11,6 +11,7 @@
   const jacobianGlyphScale = document.getElementById("jacobianGlyphScale");
   const planeRadius = document.getElementById("planeRadius");
   const autoFitPlane = document.getElementById("autoFitPlane");
+  const resetPlaneView = document.getElementById("resetPlaneView");
   const planeRadiusValue = document.getElementById("planeRadiusValue");
   const alphaInput = document.getElementById("alpha");
   const duInput = document.getElementById("du");
@@ -27,6 +28,7 @@
   const covariancePanel = document.getElementById("covariancePanel");
 
   const EPS = 1e-9;
+  const INITIAL_PLANE_RADIUS = Number(planeRadius.value) || 4.5;
 
   const state = {
     projection: projectionSelect.value,
@@ -35,7 +37,7 @@
     sampleT: Number(sampleT.value),
     showJacobianViz: showJacobianViz.checked,
     jacobianGlyphScale: Number(jacobianGlyphScale.value),
-    planeRadius: Number(planeRadius.value),
+    planeRadius: INITIAL_PLANE_RADIUS,
     alpha: Number(alphaInput.value),
     du: Number(duInput.value),
     dv: Number(dvInput.value),
@@ -75,7 +77,7 @@
     projection: {
       title: "投影类型",
       body:
-        "Gnomonic 保大圆为直线，但距离与面积畸变增长快；Stereographic 保角但不保面积；Orthographic 视觉直观但会压缩远离切点区域。"
+        "Gnomonic 保大圆为直线，但距离与面积畸变增长快；Stereographic 保角但不保面积；Orthographic 视觉直观但会压缩远离切点区域；Cotangent（余切）在切点附近增长更快，可用于观察强非线性局部畸变。"
     },
     lockNorth: {
       title: "切点锁定北极",
@@ -125,7 +127,12 @@
     autoFitPlane: {
       title: "自动缩放",
       body:
-        "根据当前投影、A/B 测地线和球面网格采样自动估计合适 R，并带安全边距，减少手动拖动半径。"
+        "根据当前投影、A/B 测地线和球面网格采样自动估计合适 R，并带安全边距，减少手动拖动半径。平面支持拖拽平移、滚轮/双指缩放。"
+    },
+    resetPlaneView: {
+      title: "复位视图",
+      bodyHtml:
+        "<p>把切平面视图恢复到默认状态：<span class='expr'>center=(0,0), R=R<sub>init</sub></span>。</p>"
     },
     analysisSidebar: {
       title: "分析面板",
@@ -227,6 +234,11 @@
     m_res: {
       title: "测地线残差",
       bodyHtml: "<p>方程残差越小，说明数值轨迹越接近理论测地线。</p>"
+    },
+    m_area_cov: {
+      title: "面积协变性",
+      bodyHtml:
+        "<p class='expr'>g′ = J<sup>T</sup> g J ⇒ det(g′) = det(J)<sup>2</sup> det(g)</p><p class='expr'>dA = √det(g) dξ<sup>1</sup>dξ<sup>2</sup></p><p>用该组指标验证面积元素在坐标变换下的一致性。</p>"
     }
   };
 
@@ -292,10 +304,11 @@
     el.innerHTML = rows
       .map((row) => {
         const extra = row.note ? " metric-note" : "";
+        const hint = row.hint ? `<span class="metric-hint">${row.hint}</span>` : "";
         const helpBtn = row.helpKey
           ? `<button class="help-btn metric-help-btn" type="button" data-help-key="${row.helpKey}" aria-label="${row.helpAria || "参数说明"}" title="${row.helpTitle || "参数说明"}">ⓘ</button>`
           : "";
-        return `<div class="metric-row${extra}"><div class="metric-label-wrap"><span class="metric-label">${row.label}</span>${helpBtn}</div><div class="metric-value">${row.value}</div></div>`;
+        return `<div class="metric-row${extra}"><div class="metric-label-wrap"><div class="metric-label-block"><span class="metric-label">${row.label}</span>${hint}</div>${helpBtn}</div><div class="metric-value">${row.value}</div></div>`;
       })
       .join("");
   }
@@ -374,7 +387,7 @@
   }
 
   function syncPlaneRadiusUI() {
-    planeRadius.value = state.planeRadius.toFixed(1);
+    planeRadius.value = state.planeRadius.toFixed(2);
     planeRadiusValue.textContent = `R = ${state.planeRadius.toFixed(2)}`;
   }
 
@@ -424,7 +437,7 @@
       1.2
     );
 
-    const minR = Number(planeRadius.min) || 0.2;
+    const minR = Number(planeRadius.min) || 0.05;
     const maxR = Number(planeRadius.max) || 30;
     state.planeRadius = clamp(candidate * 1.2, minR, maxR);
   }
@@ -492,6 +505,13 @@
       }
       const part = scale(add(x, t), 2 / d);
       y = sub(part, t);
+    } else if (projection === "cotangent") {
+      const s = Math.sqrt(Math.max(0, 1 - c * c));
+      if (s <= 1e-6) {
+        return { valid: false, reason: "near tangent point", c };
+      }
+      const dir = scale(sub(x, scale(t, c)), 1 / s);
+      y = add(t, scale(dir, c / s));
     }
 
     const yp = sub(y, t);
@@ -501,6 +521,54 @@
   }
 
   function differentialMapAtPoint(x, projection, t, basis, localBasis) {
+    function numericalDifferential() {
+      const h = 1e-5;
+      function partial(vec) {
+        const pPlus = normalize(add(x, scale(vec, h)));
+        const pMinus = normalize(add(x, scale(vec, -h)));
+        const up = projectPointToPlane(pPlus, projection, t, basis);
+        const um = projectPointToPlane(pMinus, projection, t, basis);
+        if (!up.valid || !um.valid) {
+          return null;
+        }
+        return [(up.u - um.u) / (2 * h), (up.v - um.v) / (2 * h)];
+      }
+
+      const col1 = partial(localBasis.t1);
+      const col2 = partial(localBasis.t2);
+      if (!col1 || !col2) {
+        return null;
+      }
+
+      const m11 = col1[0];
+      const m21 = col1[1];
+      const m12 = col2[0];
+      const m22 = col2[1];
+      const c11 = m11 * m11 + m21 * m21;
+      const c12 = m11 * m12 + m21 * m22;
+      const c22 = m12 * m12 + m22 * m22;
+      const tr = c11 + c22;
+      const detC = c11 * c22 - c12 * c12;
+      const disc = Math.max(0, tr * tr - 4 * detC);
+      const l1 = 0.5 * (tr + Math.sqrt(disc));
+      const l2 = 0.5 * (tr - Math.sqrt(disc));
+      const s1 = Math.sqrt(Math.max(0, l1));
+      const s2 = Math.sqrt(Math.max(0, l2));
+      const detM = m11 * m22 - m12 * m21;
+      return {
+        M: [
+          [m11, m12],
+          [m21, m22]
+        ],
+        C: [
+          [c11, c12],
+          [c12, c22]
+        ],
+        singularValues: [Math.max(s1, s2), Math.min(s1, s2)],
+        detM
+      };
+    }
+
     const c = dot(x, t);
 
     if (projection === "gnomonic" && c <= 1e-6) {
@@ -508,6 +576,9 @@
     }
     if (projection === "stereographic" && 1 + c <= 1e-6) {
       return null;
+    }
+    if (projection === "cotangent") {
+      return numericalDifferential();
     }
 
     function apply(v) {
@@ -789,7 +860,7 @@
   }
 
   function clampPlaneRadius(r) {
-    const minR = Number(planeRadius.min) || 0.2;
+    const minR = Number(planeRadius.min) || 0.05;
     const maxR = Number(planeRadius.max) || 30;
     return clamp(r, minR, maxR);
   }
@@ -827,8 +898,9 @@
 
     ctx.strokeStyle = "#cebfa9";
     ctx.setLineDash([6, 4]);
+    const originCanvas = uvToCanvas(0, 0);
     ctx.beginPath();
-    ctx.arc(cx, cy, scalePx, 0, 2 * Math.PI);
+    ctx.arc(originCanvas.x, originCanvas.y, scalePx, 0, 2 * Math.PI);
     ctx.stroke();
     ctx.setLineDash([]);
 
@@ -1226,6 +1298,15 @@
 
     const residual = geodesicResidual(state.points.A, state.points.B);
     const ch = christoffelAtLat(lat);
+    const detG = g[0][0] * g[1][1] - g[0][1] * g[1][0];
+    const detGPrime = gPrime[0][0] * gPrime[1][1] - gPrime[0][1] * gPrime[1][0];
+    const detCoordJ = j[0][0] * j[1][1] - j[0][1] * j[1][0];
+    const patch = Math.abs(state.du * state.dv);
+    const dAOld = Math.sqrt(Math.max(0, detG)) * Math.abs(detCoordJ) * patch;
+    const dANew = Math.sqrt(Math.max(0, detGPrime)) * patch;
+    const areaRatio =
+      Math.sqrt(Math.max(0, detGPrime)) /
+      (Math.max(EPS, Math.abs(detCoordJ)) * Math.sqrt(Math.max(0, detG)));
 
     return {
       lat,
@@ -1235,6 +1316,13 @@
       dsOld,
       dsNew,
       dsErr: Math.abs(dsOld - dsNew),
+      detG,
+      detGPrime,
+      detCoordJ,
+      dAOld,
+      dANew,
+      dAErr: Math.abs(dAOld - dANew),
+      areaRatio,
       ch,
       residual
     };
@@ -1246,22 +1334,22 @@
     const cov = buildCovariancePanelData();
 
     const distanceRows = [
-      { label: "投影 π", value: state.projection, helpKey: "m_proj", helpAria: "投影参数说明" },
-      { label: "d<sub>S</sub>(A,B)", value: fmt4(dist.dSphere), helpKey: "m_ds", helpAria: "球面测地距离说明" },
-      { label: "d<sub>P</sub>(A′,B′)", value: Number.isFinite(dist.dPlane) ? fmt4(dist.dPlane) : "不可定义", helpKey: "m_dp", helpAria: "平面欧氏距离说明" },
-      { label: "ρ = d<sub>P</sub>/d<sub>S</sub>", value: Number.isFinite(dist.dPlane) ? fmt4(dist.dPlane / dist.dSphere) : "—", helpKey: "m_rho", helpAria: "距离比说明" },
-      { label: "L(π(AB))", value: fmt4(dist.lPlane), helpKey: "m_lpi", helpAria: "投影曲线弧长说明" },
-      { label: "λ = L(π(AB))/d<sub>S</sub>", value: fmt4(dist.lPlane / dist.dSphere), helpKey: "m_lambda", helpAria: "弧长比说明" },
-      { label: "A 可投影", value: `${yesNo(dist.pA.valid)} · c<sub>A</sub>=${fmt4(dist.pA.c)}`, helpKey: "m_ca", helpAria: "A点可投影说明" },
-      { label: "B 可投影", value: `${yesNo(dist.pB.valid)} · c<sub>B</sub>=${fmt4(dist.pB.c)}`, helpKey: "m_cb", helpAria: "B点可投影说明" }
+      { label: "投影 π", hint: "当前映射类型", value: state.projection, helpKey: "m_proj", helpAria: "投影参数说明" },
+      { label: "d<sub>S</sub>(A,B)", hint: "球面大圆弧长", value: fmt4(dist.dSphere), helpKey: "m_ds", helpAria: "球面测地距离说明" },
+      { label: "d<sub>P</sub>(A′,B′)", hint: "平面欧氏距离", value: Number.isFinite(dist.dPlane) ? fmt4(dist.dPlane) : "不可定义", helpKey: "m_dp", helpAria: "平面欧氏距离说明" },
+      { label: "ρ = d<sub>P</sub>/d<sub>S</sub>", hint: "点距放缩比", value: Number.isFinite(dist.dPlane) ? fmt4(dist.dPlane / dist.dSphere) : "—", helpKey: "m_rho", helpAria: "距离比说明" },
+      { label: "L(π(AB))", hint: "投影曲线弧长", value: fmt4(dist.lPlane), helpKey: "m_lpi", helpAria: "投影曲线弧长说明" },
+      { label: "λ = L(π(AB))/d<sub>S</sub>", hint: "弧长放缩比", value: fmt4(dist.lPlane / dist.dSphere), helpKey: "m_lambda", helpAria: "弧长比说明" },
+      { label: "A 可投影", hint: "A 与切点夹角余弦 cA", value: `${yesNo(dist.pA.valid)} · c<sub>A</sub>=${fmt4(dist.pA.c)}`, helpKey: "m_ca", helpAria: "A点可投影说明" },
+      { label: "B 可投影", hint: "B 与切点夹角余弦 cB", value: `${yesNo(dist.pB.valid)} · c<sub>B</sub>=${fmt4(dist.pB.c)}`, helpKey: "m_cb", helpAria: "B点可投影说明" }
     ];
     renderMetricRows(distancePanel, distanceRows);
 
     const xLL = pointToLatLon(jac.x);
     const jacRows = [
-      { label: "分析点 t", value: fmt4(state.sampleT), helpKey: "sampleT", helpAria: "分析点参数说明" },
-      { label: "lat / lon (°)", value: `${fmtDeg4(xLL.lat)} / ${fmtDeg4(xLL.lon)}`, helpKey: "m_point", helpAria: "位置参数说明" },
-      { label: "几何图", value: `${state.showJacobianViz ? "开" : "关"} · 尺度 ${fmt4(state.jacobianGlyphScale)}`, helpKey: "showJacobianViz", helpAria: "几何图参数说明" }
+      { label: "分析点 t", hint: "A→B 插值参数", value: fmt4(state.sampleT), helpKey: "sampleT", helpAria: "分析点参数说明" },
+      { label: "lat / lon (°)", hint: "当前分析点坐标", value: `${fmtDeg4(xLL.lat)} / ${fmtDeg4(xLL.lon)}`, helpKey: "m_point", helpAria: "位置参数说明" },
+      { label: "几何图", hint: "是否叠加 J 几何图", value: `${state.showJacobianViz ? "开" : "关"} · 尺度 ${fmt4(state.jacobianGlyphScale)}`, helpKey: "showJacobianViz", helpAria: "几何图参数说明" }
     ];
     if (!jac.local) {
       jacRows.push({
@@ -1271,30 +1359,35 @@
       });
     } else {
       jacRows.push(
-        { label: "J<sub>11</sub>, J<sub>12</sub>", value: `${fmt4(jac.local.M[0][0])}, ${fmt4(jac.local.M[0][1])}`, helpKey: "m_j", helpAria: "Jacobian 分量说明" },
-        { label: "J<sub>21</sub>, J<sub>22</sub>", value: `${fmt4(jac.local.M[1][0])}, ${fmt4(jac.local.M[1][1])}`, helpKey: "m_j", helpAria: "Jacobian 分量说明" },
-        { label: "(J<sup>T</sup>J)<sub>11</sub>, (J<sup>T</sup>J)<sub>12</sub>", value: `${fmt4(jac.local.C[0][0])}, ${fmt4(jac.local.C[0][1])}`, helpKey: "m_jtj", helpAria: "J转置J说明" },
-        { label: "(J<sup>T</sup>J)<sub>22</sub>", value: fmt4(jac.local.C[1][1]), helpKey: "m_jtj", helpAria: "J转置J说明" },
-        { label: "det(J)", value: fmt4(jac.local.detM), helpKey: "m_detj", helpAria: "det(J) 说明" },
-        { label: "σ<sub>1</sub>, σ<sub>2</sub>", value: `${fmt4(jac.s1)}, ${fmt4(jac.s2)}`, helpKey: "m_sigma", helpAria: "主伸缩说明" },
-        { label: "|det(J)|", value: fmt4(jac.area), helpKey: "m_detj", helpAria: "|det(J)| 说明" },
-        { label: "κ = σ<sub>1</sub>/σ<sub>2</sub>", value: fmt4(jac.anisotropy), helpKey: "m_kappa", helpAria: "各向异性说明" },
-        { label: "θ<sub>max</sub> (°)", value: fmt4(jac.angleErr), helpKey: "m_theta", helpAria: "角偏差说明" }
+        { label: "J<sub>11</sub>, J<sub>12</sub>", hint: "Jacobian 第一行", value: `${fmt4(jac.local.M[0][0])}, ${fmt4(jac.local.M[0][1])}`, helpKey: "m_j", helpAria: "Jacobian 分量说明" },
+        { label: "J<sub>21</sub>, J<sub>22</sub>", hint: "Jacobian 第二行", value: `${fmt4(jac.local.M[1][0])}, ${fmt4(jac.local.M[1][1])}`, helpKey: "m_j", helpAria: "Jacobian 分量说明" },
+        { label: "(J<sup>T</sup>J)<sub>11</sub>, (J<sup>T</sup>J)<sub>12</sub>", hint: "拉回度量分量", value: `${fmt4(jac.local.C[0][0])}, ${fmt4(jac.local.C[0][1])}`, helpKey: "m_jtj", helpAria: "J转置J说明" },
+        { label: "(J<sup>T</sup>J)<sub>22</sub>", hint: "拉回度量分量", value: fmt4(jac.local.C[1][1]), helpKey: "m_jtj", helpAria: "J转置J说明" },
+        { label: "det(J)", hint: "有向面积缩放", value: fmt4(jac.local.detM), helpKey: "m_detj", helpAria: "det(J) 说明" },
+        { label: "σ<sub>1</sub>, σ<sub>2</sub>", hint: "主方向伸缩", value: `${fmt4(jac.s1)}, ${fmt4(jac.s2)}`, helpKey: "m_sigma", helpAria: "主伸缩说明" },
+        { label: "|det(J)|", hint: "面积畸变倍率", value: fmt4(jac.area), helpKey: "m_detj", helpAria: "|det(J)| 说明" },
+        { label: "κ = σ<sub>1</sub>/σ<sub>2</sub>", hint: "角畸变各向异性", value: fmt4(jac.anisotropy), helpKey: "m_kappa", helpAria: "各向异性说明" },
+        { label: "θ<sub>max</sub> (°)", hint: "角偏差上界", value: fmt4(jac.angleErr), helpKey: "m_theta", helpAria: "角偏差说明" }
       );
     }
     renderMetricRows(jacobianPanel, jacRows);
 
     const covRows = [
-      { label: "测试点 lat / lon (°)", value: `${fmtDeg4(cov.lat)} / ${fmtDeg4(cov.lon)}`, helpKey: "m_point", helpAria: "测试点说明" },
-      { label: "α", value: fmt4(state.alpha), helpKey: "alpha", helpAria: "alpha 参数说明" },
-      { label: "g<sub>11</sub>, g<sub>22</sub>", value: `${fmt4(cov.g[0][0])}, ${fmt4(cov.g[1][1])}`, helpKey: "m_g", helpAria: "度量说明" },
-      { label: "g′<sub>11</sub>, g′<sub>12</sub>", value: `${fmt4(cov.gPrime[0][0])}, ${fmt4(cov.gPrime[0][1])}`, helpKey: "m_g", helpAria: "变换后度量说明" },
-      { label: "g′<sub>22</sub>", value: fmt4(cov.gPrime[1][1]), helpKey: "m_g", helpAria: "变换后度量说明" },
-      { label: "ds²<sub>old</sub>, ds²<sub>new</sub>", value: `${fmt4(cov.dsOld)}, ${fmt4(cov.dsNew)}`, helpKey: "m_ds2", helpAria: "线元一致性说明" },
-      { label: "|Δds²|", value: fmt4(cov.dsErr), helpKey: "m_ds2", helpAria: "线元误差说明" },
-      { label: "Γ<sup>φ</sup><sub>λλ</sub>", value: fmt4(cov.ch.G_lat_lonlon), helpKey: "m_gamma", helpAria: "Christoffel 说明" },
-      { label: "Γ<sup>λ</sup><sub>φλ</sub>", value: fmt4(cov.ch.G_lon_latlon), helpKey: "m_gamma", helpAria: "Christoffel 说明" },
-      { label: "测地线残差 max / mean", value: `${fmt4(cov.residual.max)} / ${fmt4(cov.residual.mean)}`, helpKey: "m_res", helpAria: "残差说明" }
+      { label: "测试点 lat / lon (°)", hint: "协变性采样点", value: `${fmtDeg4(cov.lat)} / ${fmtDeg4(cov.lon)}`, helpKey: "m_point", helpAria: "测试点说明" },
+      { label: "α", hint: "坐标变换参数", value: fmt4(state.alpha), helpKey: "alpha", helpAria: "alpha 参数说明" },
+      { label: "g<sub>11</sub>, g<sub>22</sub>", hint: "原坐标度量", value: `${fmt4(cov.g[0][0])}, ${fmt4(cov.g[1][1])}`, helpKey: "m_g", helpAria: "度量说明" },
+      { label: "g′<sub>11</sub>, g′<sub>12</sub>", hint: "变换后度量", value: `${fmt4(cov.gPrime[0][0])}, ${fmt4(cov.gPrime[0][1])}`, helpKey: "m_g", helpAria: "变换后度量说明" },
+      { label: "g′<sub>22</sub>", hint: "变换后度量", value: fmt4(cov.gPrime[1][1]), helpKey: "m_g", helpAria: "变换后度量说明" },
+      { label: "ds²<sub>old</sub>, ds²<sub>new</sub>", hint: "线元一致性", value: `${fmt4(cov.dsOld)}, ${fmt4(cov.dsNew)}`, helpKey: "m_ds2", helpAria: "线元一致性说明" },
+      { label: "|Δds²|", hint: "线元误差", value: fmt4(cov.dsErr), helpKey: "m_ds2", helpAria: "线元误差说明" },
+      { label: "det(g), det(g′)", hint: "度量行列式", value: `${fmt4(cov.detG)}, ${fmt4(cov.detGPrime)}`, helpKey: "m_area_cov", helpAria: "面积协变性说明" },
+      { label: "|det(∂x/∂u)|", hint: "坐标雅可比行列式", value: fmt4(Math.abs(cov.detCoordJ)), helpKey: "m_area_cov", helpAria: "坐标雅可比说明" },
+      { label: "r<sub>A</sub>=√det(g′)/( |detJ|√det(g) )", hint: "理论应接近 1", value: fmt4(cov.areaRatio), helpKey: "m_area_cov", helpAria: "面积协变比说明" },
+      { label: "dA<sub>old</sub>, dA<sub>new</sub>", hint: "面积元素对比", value: `${fmt4(cov.dAOld)}, ${fmt4(cov.dANew)}`, helpKey: "m_area_cov", helpAria: "面积元素说明" },
+      { label: "|ΔA|", hint: "面积协变误差", value: fmt4(cov.dAErr), helpKey: "m_area_cov", helpAria: "面积误差说明" },
+      { label: "Γ<sup>φ</sup><sub>λλ</sub>", hint: "Christoffel 分量", value: fmt4(cov.ch.G_lat_lonlon), helpKey: "m_gamma", helpAria: "Christoffel 说明" },
+      { label: "Γ<sup>λ</sup><sub>φλ</sub>", hint: "Christoffel 分量", value: fmt4(cov.ch.G_lon_latlon), helpKey: "m_gamma", helpAria: "Christoffel 说明" },
+      { label: "测地线残差 max / mean", hint: "方程拟合误差", value: `${fmt4(cov.residual.max)} / ${fmt4(cov.residual.mean)}`, helpKey: "m_res", helpAria: "残差说明" }
     ];
     renderMetricRows(covariancePanel, covRows);
   }
@@ -1346,6 +1439,13 @@
 
     autoFitPlane.addEventListener("click", () => {
       autoFitPlaneRadius();
+      renderAll();
+    });
+
+    resetPlaneView.addEventListener("click", () => {
+      state.planeView.centerU = 0;
+      state.planeView.centerV = 0;
+      state.planeRadius = INITIAL_PLANE_RADIUS;
       renderAll();
     });
 

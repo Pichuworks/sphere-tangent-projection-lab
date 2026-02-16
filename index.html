@@ -27,6 +27,7 @@
                 <option value="gnomonic">Gnomonic（中心投影）</option>
                 <option value="stereographic">Stereographic（对径点投影）</option>
                 <option value="orthographic">Orthographic（正交投影）</option>
+                <option value="cotangent">Cotangent（余切投影）</option>
               </select>
             </div>
 
@@ -55,7 +56,7 @@
                 <span>切平面半径</span>
                 <button class="help-btn" type="button" data-help-key="planeRadius" aria-label="切平面半径说明" title="切平面半径说明">ⓘ</button>
               </div>
-              <input id="planeRadius" type="range" min="0.2" max="30" step="0.1" value="4.5" />
+              <input id="planeRadius" type="range" min="0.05" max="30" step="0.01" value="4.5" />
             </div>
           </section>
 
@@ -128,7 +129,9 @@
             <h2>切平面视图</h2>
             <div class="plane-actions">
               <button id="autoFitPlane" class="icon-btn" type="button" aria-label="自动缩放" title="自动缩放">⤢</button>
+              <button id="resetPlaneView" class="icon-btn" type="button" aria-label="复位视图" title="复位视图">↺</button>
               <button class="help-btn" type="button" data-help-key="autoFitPlane" aria-label="自动缩放说明" title="自动缩放说明">ⓘ</button>
+              <button class="help-btn" type="button" data-help-key="resetPlaneView" aria-label="复位视图说明" title="复位视图说明">ⓘ</button>
               <span id="planeRadiusValue">R = 4.5</span>
             </div>
           </div>

@@ -16,9 +16,7 @@ body {
   margin: 0;
   font-family: "IBM Plex Sans", "Noto Sans SC", sans-serif;
   color: var(--ink);
-  background:
-    radial-gradient(circle at 12% 15%, #fff8eb 0, #fff8eb 22%, transparent 23%),
-    linear-gradient(140deg, #f8f2e8 0%, #efe5d6 55%, #f4ecdf 100%);
+  background: linear-gradient(140deg, #f8f2e8 0%, #efe5d6 55%, #f4ecdf 100%);
 }
 
 .app {
@@ -230,7 +228,7 @@ canvas {
 }
 
 .formula-line {
-  font-family: "IBM Plex Mono", "Fira Code", monospace;
+  font-family: "STIX Two Text", "Times New Roman", serif;
   line-height: 1.35;
 }
 
@@ -260,13 +258,23 @@ canvas {
 
 .metric-label-wrap {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
+}
+
+.metric-label-block {
+  display: grid;
+  gap: 2px;
 }
 
 .metric-label {
   color: var(--muted);
   font-size: 0.85rem;
+}
+
+.metric-hint {
+  color: #8b7f72;
+  font-size: 0.74rem;
 }
 
 .metric-value {
@@ -405,7 +413,7 @@ body.sidebar-collapsed .sidebar-toggle {
 }
 
 #helpBody .expr {
-  font-family: "IBM Plex Mono", "Fira Code", monospace;
+  font-family: "STIX Two Text", "Times New Roman", serif;
   color: #2c241c;
 }
 
