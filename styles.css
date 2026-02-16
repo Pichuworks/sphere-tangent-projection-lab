@@ -18,7 +18,7 @@ body {
   color: var(--ink);
   background:
     radial-gradient(circle at 12% 15%, #fff8eb 0, #fff8eb 22%, transparent 23%),
-    radial-gradient(circle at 85% 3%, #f2d3a8 0, #f2d3a8 12%, transparent 13%),
+    radial-gradient(circle at 85% 3%, #f4e4cc 0, #f4e4cc 9%, transparent 10%),
     linear-gradient(140deg, #f8f2e8 0%, #efe5d6 55%, #f4ecdf 100%);
 }
 
@@ -215,16 +215,60 @@ canvas {
   border-color: #d9c5a5;
 }
 
-#covFormulaPanel {
-  font-size: 0.8rem;
+.formula-lines {
+  display: grid;
+  gap: 9px;
+  font-size: 0.96rem;
 }
 
-pre {
-  margin: 0;
-  white-space: pre-wrap;
+.formula-line {
   font-family: "IBM Plex Mono", "Fira Code", monospace;
-  font-size: 0.84rem;
-  line-height: 1.36;
+  line-height: 1.35;
+}
+
+.formula-caption {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.metric-list {
+  display: grid;
+  gap: 3px;
+}
+
+.metric-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: baseline;
+  padding: 3px 0;
+  border-bottom: 1px dashed #d8cab8;
+}
+
+.metric-row:last-child {
+  border-bottom: none;
+}
+
+.metric-label {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.metric-value {
+  font-family: "IBM Plex Mono", "Fira Code", monospace;
+  font-size: 0.9rem;
+  color: #251f18;
+  text-align: right;
+}
+
+.metric-note {
+  grid-template-columns: 1fr;
+}
+
+.metric-note .metric-value {
+  text-align: left;
+  color: #7c2f1d;
 }
 
 button {
@@ -285,6 +329,8 @@ button:hover {
   z-index: 30;
   transition: right 0.24s ease, background 0.2s ease;
   box-shadow: 0 8px 18px -14px #000000aa;
+  background: #eee6d7;
+  border-color: #b7a992;
 }
 
 body.sidebar-collapsed .analysis-sidebar {
@@ -416,5 +462,14 @@ body.sidebar-collapsed .sidebar-toggle {
 
   .help-dialog {
     width: min(96vw, 420px);
+  }
+
+  .metric-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .metric-value {
+    text-align: left;
   }
 }

@@ -180,8 +180,31 @@
     return [v[0] / n, v[1] / n, v[2] / n];
   }
 
-  function mat2ToString(m) {
-    return `[[${m[0][0].toExponential(4)}, ${m[0][1].toExponential(4)}],\n [${m[1][0].toExponential(4)}, ${m[1][1].toExponential(4)}]]`;
+  function fmt4(x) {
+    if (!Number.isFinite(x)) {
+      return "—";
+    }
+    return x.toFixed(4);
+  }
+
+  function fmtDeg4(rad) {
+    if (!Number.isFinite(rad)) {
+      return "—";
+    }
+    return (rad * 180 / Math.PI).toFixed(4);
+  }
+
+  function yesNo(v) {
+    return v ? "是" : "否";
+  }
+
+  function renderMetricRows(el, rows) {
+    el.innerHTML = rows
+      .map((row) => {
+        const extra = row.note ? " metric-note" : "";
+        return `<div class="metric-row${extra}"><div class="metric-label">${row.label}</div><div class="metric-value">${row.value}</div></div>`;
+      })
+      .join("");
   }
 
   function mat2Vec2Mul(m, v) {
@@ -1096,51 +1119,58 @@
     const jac = buildJacobianPanelData();
     const cov = buildCovariancePanelData();
 
-    const distanceLines = [];
-    distanceLines.push(`投影: ${state.projection}`);
-    distanceLines.push(`球面测地距离 dS(A,B): ${dist.dSphere.toFixed(8)}`);
-    if (Number.isFinite(dist.dPlane)) {
-      distanceLines.push(`平面欧氏距离 dP(A',B'): ${dist.dPlane.toFixed(8)}`);
-      distanceLines.push(`点间距离比 dP/dS: ${(dist.dPlane / dist.dSphere).toFixed(8)}`);
-    } else {
-      distanceLines.push("平面欧氏距离 dP(A',B'): 不可定义（投影奇异/不可见）");
-    }
-    distanceLines.push(`投影后曲线弧长 L(π(AB)): ${dist.lPlane.toFixed(8)}`);
-    distanceLines.push(`弧长比 L(π(AB))/dS: ${(dist.lPlane / dist.dSphere).toFixed(8)}`);
-    distanceLines.push(`A 点可投影: ${dist.pA.valid ? "是" : "否"} | cA=${dist.pA.c.toFixed(6)}`);
-    distanceLines.push(`B 点可投影: ${dist.pB.valid ? "是" : "否"} | cB=${dist.pB.c.toFixed(6)}`);
-    distancePanel.textContent = distanceLines.join("\n");
+    const distanceRows = [
+      { label: "投影 π", value: state.projection },
+      { label: "d<sub>S</sub>(A,B)", value: fmt4(dist.dSphere) },
+      { label: "d<sub>P</sub>(A′,B′)", value: Number.isFinite(dist.dPlane) ? fmt4(dist.dPlane) : "不可定义" },
+      { label: "ρ = d<sub>P</sub>/d<sub>S</sub>", value: Number.isFinite(dist.dPlane) ? fmt4(dist.dPlane / dist.dSphere) : "—" },
+      { label: "L(π(AB))", value: fmt4(dist.lPlane) },
+      { label: "λ = L(π(AB))/d<sub>S</sub>", value: fmt4(dist.lPlane / dist.dSphere) },
+      { label: "A 可投影", value: `${yesNo(dist.pA.valid)} · c<sub>A</sub>=${fmt4(dist.pA.c)}` },
+      { label: "B 可投影", value: `${yesNo(dist.pB.valid)} · c<sub>B</sub>=${fmt4(dist.pB.c)}` }
+    ];
+    renderMetricRows(distancePanel, distanceRows);
 
     const xLL = pointToLatLon(jac.x);
-    const jacLines = [];
-    jacLines.push(`分析点 t=${state.sampleT.toFixed(2)} | lat=${(xLL.lat * 180 / Math.PI).toFixed(3)}° lon=${(xLL.lon * 180 / Math.PI).toFixed(3)}°`);
-    jacLines.push(`几何图开关: ${state.showJacobianViz ? "开" : "关"} | 图示尺度: ${state.jacobianGlyphScale.toFixed(2)}`);
+    const jacRows = [
+      { label: "分析点 t", value: fmt4(state.sampleT) },
+      { label: "lat / lon (°)", value: `${fmtDeg4(xLL.lat)} / ${fmtDeg4(xLL.lon)}` },
+      { label: "几何图", value: `${state.showJacobianViz ? "开" : "关"} · 尺度 ${fmt4(state.jacobianGlyphScale)}` }
+    ];
     if (!jac.local) {
-      jacLines.push("当前点处 Jacobian 不可定义（接近投影奇异位置）");
+      jacRows.push({
+        label: "提示",
+        value: "当前点 Jacobian 不可定义（接近投影奇异位置）",
+        note: true
+      });
     } else {
-      jacLines.push(`J = ${mat2ToString(jac.local.M)}`);
-      jacLines.push(`g_pullback = J^T J = ${mat2ToString(jac.local.C)}`);
-      jacLines.push(`det(J): ${jac.local.detM.toExponential(6)}`);
-      jacLines.push(`主伸缩 σ1, σ2: ${jac.s1.toExponential(6)}, ${jac.s2.toExponential(6)}`);
-      jacLines.push(`面积畸变 |det(J)|: ${jac.area.toExponential(6)}`);
-      jacLines.push(`角畸变各向异性 σ1/σ2: ${jac.anisotropy.toExponential(6)}`);
-      jacLines.push(`最大角偏差上界(度): ${jac.angleErr.toFixed(6)}`);
+      jacRows.push(
+        { label: "J<sub>11</sub>, J<sub>12</sub>", value: `${fmt4(jac.local.M[0][0])}, ${fmt4(jac.local.M[0][1])}` },
+        { label: "J<sub>21</sub>, J<sub>22</sub>", value: `${fmt4(jac.local.M[1][0])}, ${fmt4(jac.local.M[1][1])}` },
+        { label: "(J<sup>T</sup>J)<sub>11</sub>, (J<sup>T</sup>J)<sub>12</sub>", value: `${fmt4(jac.local.C[0][0])}, ${fmt4(jac.local.C[0][1])}` },
+        { label: "(J<sup>T</sup>J)<sub>22</sub>", value: fmt4(jac.local.C[1][1]) },
+        { label: "det(J)", value: fmt4(jac.local.detM) },
+        { label: "σ<sub>1</sub>, σ<sub>2</sub>", value: `${fmt4(jac.s1)}, ${fmt4(jac.s2)}` },
+        { label: "|det(J)|", value: fmt4(jac.area) },
+        { label: "κ = σ<sub>1</sub>/σ<sub>2</sub>", value: fmt4(jac.anisotropy) },
+        { label: "θ<sub>max</sub> (°)", value: fmt4(jac.angleErr) }
+      );
     }
-    jacobianPanel.textContent = jacLines.join("\n");
+    renderMetricRows(jacobianPanel, jacRows);
 
-    const covLines = [];
-    covLines.push(`协变性测试点 lat=${(cov.lat * 180 / Math.PI).toFixed(3)}° lon=${(cov.lon * 180 / Math.PI).toFixed(3)}°`);
-    covLines.push(`原坐标度量 g(lat,lon) = ${mat2ToString(cov.g)}`);
-    covLines.push(`变换: u=lat, v=lon+α sin(lat), α=${state.alpha.toFixed(2)}`);
-    covLines.push(`新坐标度量 g'(u,v) = ${mat2ToString(cov.gPrime)}`);
-    covLines.push(`ds^2_old: ${cov.dsOld.toExponential(8)} | ds^2_new: ${cov.dsNew.toExponential(8)}`);
-    covLines.push(`|ds^2_old - ds^2_new|: ${cov.dsErr.toExponential(8)}`);
-    covLines.push("Christoffel (lat/lon):");
-    covLines.push(`Γ^lat_{lon lon} = ${cov.ch.G_lat_lonlon.toExponential(6)}`);
-    covLines.push(`Γ^lon_{lat lon} = Γ^lon_{lon lat} = ${cov.ch.G_lon_latlon.toExponential(6)}`);
-    covLines.push(`大圆测地线方程残差 max: ${cov.residual.max.toExponential(6)}`);
-    covLines.push(`大圆测地线方程残差 mean: ${cov.residual.mean.toExponential(6)}`);
-    covariancePanel.textContent = covLines.join("\n");
+    const covRows = [
+      { label: "测试点 lat / lon (°)", value: `${fmtDeg4(cov.lat)} / ${fmtDeg4(cov.lon)}` },
+      { label: "α", value: fmt4(state.alpha) },
+      { label: "g<sub>11</sub>, g<sub>22</sub>", value: `${fmt4(cov.g[0][0])}, ${fmt4(cov.g[1][1])}` },
+      { label: "g′<sub>11</sub>, g′<sub>12</sub>", value: `${fmt4(cov.gPrime[0][0])}, ${fmt4(cov.gPrime[0][1])}` },
+      { label: "g′<sub>22</sub>", value: fmt4(cov.gPrime[1][1]) },
+      { label: "ds²<sub>old</sub>, ds²<sub>new</sub>", value: `${fmt4(cov.dsOld)}, ${fmt4(cov.dsNew)}` },
+      { label: "|Δds²|", value: fmt4(cov.dsErr) },
+      { label: "Γ<sup>φ</sup><sub>λλ</sub>", value: fmt4(cov.ch.G_lat_lonlon) },
+      { label: "Γ<sup>λ</sup><sub>φλ</sub>", value: fmt4(cov.ch.G_lon_latlon) },
+      { label: "测地线残差 max / mean", value: `${fmt4(cov.residual.max)} / ${fmt4(cov.residual.mean)}` }
+    ];
+    renderMetricRows(covariancePanel, covRows);
   }
 
   function renderAll() {

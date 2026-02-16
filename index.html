@@ -159,15 +159,12 @@
             <h3>广义协变性公式</h3>
             <button class="help-btn" type="button" data-help-key="covFormula" aria-label="广义协变性公式说明" title="广义协变性公式说明">ⓘ</button>
           </div>
-          <pre id="covFormulaPanel">ds^2 = g_ij dx^i dx^j
-
-g'_(ab) = (∂x^i/∂u^a)(∂x^j/∂u^b) g_(ij)
-
-d^2x^k/ds^2 + Γ^k_(ij) (dx^i/ds)(dx^j/ds) = 0
-
-本实验坐标变换:
-u = lat,
-v = lon + α sin(lat)</pre>
+          <div id="covFormulaPanel" class="formula-lines">
+            <div class="formula-line">ds² = g<sub>ij</sub> dx<sup>i</sup> dx<sup>j</sup></div>
+            <div class="formula-line">g′<sub>ab</sub> = (∂x<sup>i</sup>/∂u<sup>a</sup>)(∂x<sup>j</sup>/∂u<sup>b</sup>) g<sub>ij</sub></div>
+            <div class="formula-line">d²x<sup>k</sup>/ds² + Γ<sup>k</sup><sub>ij</sub> (dx<sup>i</sup>/ds)(dx<sup>j</sup>/ds) = 0</div>
+            <div class="formula-caption">坐标变换：u = lat，v = lon + α sin(lat)</div>
+          </div>
         </article>
 
         <article class="panel">
@@ -175,7 +172,7 @@ v = lon + α sin(lat)</pre>
             <h3>距离与弧长变化</h3>
             <button class="help-btn" type="button" data-help-key="distancePanel" aria-label="距离与弧长变化说明" title="距离与弧长变化说明">ⓘ</button>
           </div>
-          <pre id="distancePanel"></pre>
+          <div id="distancePanel" class="metric-list"></div>
         </article>
 
         <article class="panel">
@@ -183,7 +180,7 @@ v = lon + α sin(lat)</pre>
             <h3>局部 Jacobian / 畸变</h3>
             <button class="help-btn" type="button" data-help-key="jacobianPanel" aria-label="局部 Jacobian 说明" title="局部 Jacobian 说明">ⓘ</button>
           </div>
-          <pre id="jacobianPanel"></pre>
+          <div id="jacobianPanel" class="metric-list"></div>
         </article>
 
         <article class="panel">
@@ -191,7 +188,7 @@ v = lon + α sin(lat)</pre>
             <h3>广义协变性与测地线验证</h3>
             <button class="help-btn" type="button" data-help-key="covariancePanel" aria-label="广义协变性与测地线验证说明" title="广义协变性与测地线验证说明">ⓘ</button>
           </div>
-          <pre id="covariancePanel"></pre>
+          <div id="covariancePanel" class="metric-list"></div>
         </article>
       </section>
     </aside>
